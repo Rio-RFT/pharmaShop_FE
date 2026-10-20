@@ -49,7 +49,7 @@
   <text x="100" y="174" fill="#B9F4D5" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="5">CHĂM SÓC SỨC KHỎE MỖI NGÀY</text>
   <text x="94" y="270" fill="#F4FFF9" font-family="Arial, Helvetica, sans-serif" font-size="82" font-weight="700" letter-spacing="-3">PharmaShop</text>
   <text x="101" y="326" fill="#D0EAE0" font-family="Arial, Helvetica, sans-serif" font-size="25">Nhà thuốc trực tuyến, ngay trong tầm tay.</text>
-  <rect x="100" y="376" width="182" height="44" rx="22" fill="#164D45" stroke="#4F9B83"/>
+  <rect x="100" y="376" width="211" height="44" rx="22" fill="#164D45" stroke="#4F9B83"/>
   <text x="126" y="405" fill="#E3FFF2" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700">iOS · Android · Web</text>
   </g>
 </svg>
