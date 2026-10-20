@@ -2,19 +2,17 @@ import { Link, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { Keyboard } from 'react-native';
+import { Keyboard, Platform } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/features/auth/auth-provider';
 import { AuthDivider, AuthError, AuthField, AuthGoogleButton, AuthLayout, AuthPrimaryButton } from '@/features/auth/components/auth-ui';
 import { ApiError, API_BASE_URL } from '@/shared/api/client';
 import { useTheme } from '@/hooks/use-theme';
 
-WebBrowser.maybeCompleteAuthSession();
-
 export default function LoginScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { signIn, signInWithGoogleCode } = useAuth();
+  const { signIn, signInWithGoogle, signInWithGoogleCode } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -37,18 +35,27 @@ export default function LoginScreen() {
     finally { setBusy(false); }
   };
 
-  const signInWithGoogle = async () => {
+  const handleGoogleSignIn = async () => {
     Keyboard.dismiss();
     setGoogleBusy(true); setFormError(null);
     try {
-      const redirectUri = Linking.createURL('auth/google/callback');
-      const startUrl = new URL(`${API_BASE_URL}/auth/google`);
-      startUrl.searchParams.set('redirect_uri', redirectUri);
-      const result = await WebBrowser.openAuthSessionAsync(startUrl.toString(), redirectUri);
-      if (result.type !== 'success' || !result.url) return;
-      const code = readGoogleCode(result.url, redirectUri);
-      await signInWithGoogleCode(code);
-      router.back();
+      if (Platform.OS === 'android') {
+        if (await signInWithGoogle()) router.back();
+        return;
+      }
+      if (Platform.OS === 'ios') {
+        const redirectUri = Linking.createURL('auth/callback');
+        const result = await WebBrowser.openAuthSessionAsync(`${API_BASE_URL}/auth/google`, redirectUri);
+        if (result.type !== 'success' || !result.url) return;
+        const callback = new URL(result.url);
+        if (callback.protocol !== 'pharmashop:' || callback.hostname !== 'auth' || callback.pathname !== '/callback') {
+          throw new Error('Địa chỉ trả về từ Google không hợp lệ.');
+        }
+        const code = callback.searchParams.get('code');
+        if (!code) throw new Error('Không nhận được mã đăng nhập Google.');
+        await signInWithGoogleCode(code);
+        router.back();
+      }
     } catch (reason) {
       setFormError(reason instanceof ApiError ? reason.message : reason instanceof Error ? reason.message : 'Không thể đăng nhập bằng Google.');
     } finally {
@@ -67,19 +74,6 @@ export default function LoginScreen() {
     {formError ? <AuthError>{formError}</AuthError> : null}
     <AuthPrimaryButton title="Đăng nhập" busy={busy} disabled={googleBusy} onPress={() => void submit()} />
     <AuthDivider />
-    <AuthGoogleButton busy={googleBusy} disabled={busy} onPress={() => void signInWithGoogle()} />
+    <AuthGoogleButton busy={googleBusy} disabled={busy || Platform.OS === 'web'} onPress={() => void handleGoogleSignIn()} />
   </AuthLayout>;
-}
-
-function readGoogleCode(resultUrl: string, expectedRedirectUri: string) {
-  const actual = new URL(resultUrl);
-  const expected = new URL(expectedRedirectUri);
-  if (actual.protocol !== expected.protocol || actual.host !== expected.host || actual.pathname !== expected.pathname) {
-    throw new Error('Địa chỉ trả về từ Google không hợp lệ.');
-  }
-  const oauthError = actual.searchParams.get('error');
-  if (oauthError) throw new Error('Đăng nhập Google đã bị hủy hoặc không thành công.');
-  const code = actual.searchParams.get('code');
-  if (!code) throw new Error('Không nhận được mã đăng nhập từ Google.');
-  return code;
 }

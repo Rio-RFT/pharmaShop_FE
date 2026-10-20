@@ -1,14 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { apiPost } from '@/shared/api/client';
 import { clearCredentials, onSessionExpired, readCredential, saveCredentials } from '@/features/auth/token-storage';
 import { addCartItem } from '@/features/cart/api/cart';
 import type { Medicine } from '@/features/catalog/api/medicines';
 
+GoogleSignin.configure({ webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID });
+
 export type AuthUser = { id: string; fullName: string; phone: string; email: string | null; role: 'CUSTOMER' | 'PHARMACIST' | 'ADMIN'; avatarUrl: string | null };
 export type GuestCartEntry = { medicine: Medicine; quantity: number };
 type AuthResponse = { user: AuthUser; accessToken: string; refreshToken: string };
-type AuthContextValue = { user: AuthUser | null; loading: boolean; guestItems: GuestCartEntry[]; guestCartSyncError: string | null; addGuestItem: (medicine: Medicine) => void; setGuestQuantity: (medicineId: string, quantity: number) => void; removeGuestItem: (medicineId: string) => void; retryGuestCartSync: () => Promise<void>; signIn: (identifier: string, password: string) => Promise<void>; signInWithGoogleCode: (code: string) => Promise<void>; signUp: (input: { fullName: string; phone: string; email?: string; password: string }) => Promise<void>; signOut: () => Promise<void> };
+type AuthContextValue = { user: AuthUser | null; loading: boolean; guestItems: GuestCartEntry[]; guestCartSyncError: string | null; addGuestItem: (medicine: Medicine) => void; setGuestQuantity: (medicineId: string, quantity: number) => void; removeGuestItem: (medicineId: string) => void; retryGuestCartSync: () => Promise<void>; signIn: (identifier: string, password: string) => Promise<void>; signInWithGoogle: () => Promise<boolean>; signInWithGoogleCode: (code: string) => Promise<void>; signUp: (input: { fullName: string; phone: string; email?: string; password: string }) => Promise<void>; signOut: () => Promise<void> };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -77,6 +80,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await syncGuestCart();
   }, [acceptSession, syncGuestCart]);
 
+  const signInWithGoogle = useCallback(async () => {
+    await GoogleSignin.hasPlayServices();
+    const result = await GoogleSignin.signIn();
+    if (result.type !== 'success') return false;
+    const idToken = result.data.idToken;
+    if (!idToken) throw new Error('Google chưa trả về ID token. Kiểm tra EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID.');
+    await acceptSession(await apiPost<AuthResponse, { idToken: string }>('/auth/google/native', { idToken }));
+    await syncGuestCart();
+    return true;
+  }, [acceptSession, syncGuestCart]);
+
   const signInWithGoogleCode = useCallback(async (code: string) => {
     await acceptSession(await apiPost<AuthResponse, { code: string }>('/auth/google/exchange', { code }));
     await syncGuestCart();
@@ -96,7 +110,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     queryClient.removeQueries({ queryKey: ['addresses'] });
   }, [queryClient]);
 
-  const value = useMemo(() => ({ user, loading, guestItems, guestCartSyncError, addGuestItem, setGuestQuantity, removeGuestItem, retryGuestCartSync: syncGuestCart, signIn, signInWithGoogleCode, signUp, signOut }), [user, loading, guestItems, guestCartSyncError, addGuestItem, setGuestQuantity, removeGuestItem, syncGuestCart, signIn, signInWithGoogleCode, signUp, signOut]);
+  const value = useMemo(() => ({ user, loading, guestItems, guestCartSyncError, addGuestItem, setGuestQuantity, removeGuestItem, retryGuestCartSync: syncGuestCart, signIn, signInWithGoogle, signInWithGoogleCode, signUp, signOut }), [user, loading, guestItems, guestCartSyncError, addGuestItem, setGuestQuantity, removeGuestItem, syncGuestCart, signIn, signInWithGoogle, signInWithGoogleCode, signUp, signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
