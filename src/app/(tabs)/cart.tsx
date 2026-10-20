@@ -1,9 +1,10 @@
+import { LoadingIndicator } from '@/shared/components/loading-indicator';
 import { Link, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { Image } from 'expo-image';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { ThemedText } from '@/components/themed-text';
@@ -76,7 +77,7 @@ export default function CartScreen() {
           </View>
 
           {loading ? (
-            <View style={styles.state}><ActivityIndicator color={theme.tint} /><ThemedText themeColor="textSecondary" style={styles.stateText}>Đang tải giỏ hàng…</ThemedText></View>
+            <View style={styles.state}><LoadingIndicator size={60} color={theme.tint} /><ThemedText themeColor="textSecondary" style={styles.stateText}>Đang tải giỏ hàng…</ThemedText></View>
           ) : loadError ? (
             <View style={[styles.state, { backgroundColor: theme.backgroundElement }]}>
               <ThemedText style={styles.stateTitle}>Chưa tải được giỏ hàng</ThemedText>

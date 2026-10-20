@@ -17,6 +17,7 @@ export type Order = {
   subtotalAmount?: number | string;
   discountAmount?: number | string;
   couponCode?: string | null;
+  paymentOrderCode?: number | string | null;
   receiverName?: string;
   receiverPhone?: string;
   shippingAddress?: string;

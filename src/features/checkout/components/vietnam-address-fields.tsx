@@ -1,5 +1,6 @@
+import { LoadingIndicator } from '@/shared/components/loading-indicator';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
@@ -41,7 +42,7 @@ export function VietnamAddressFields({ value, onChange }: { value: AddressLocati
           style={[styles.select, { borderColor: theme.backgroundSelected, backgroundColor: theme.background, opacity: field.disabled ? 0.55 : 1 }]}
         >
           <ThemedText numberOfLines={1} themeColor={field.value ? 'text' : 'textSecondary'} style={styles.selectValue}>{field.value?.name ?? `Chọn ${field.label.toLocaleLowerCase('vi-VN')}`}</ThemedText>
-          {field.loading ? <ActivityIndicator size="small" color={theme.tint} /> : <ThemedText themeColor="textSecondary" style={styles.chevron}>⌄</ThemedText>}
+          {field.loading ? <LoadingIndicator size="small" color={theme.tint} /> : <ThemedText themeColor="textSecondary" style={styles.chevron}>⌄</ThemedText>}
         </Pressable>
         {field.error ? <Pressable accessibilityRole="button" onPress={field.retry} style={styles.retry}><ThemedText style={{ color: '#B42318', fontSize: 12 }}>Không tải được dữ liệu. Chạm để thử lại.</ThemedText></Pressable> : null}
       </View>;

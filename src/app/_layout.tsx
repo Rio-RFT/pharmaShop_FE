@@ -25,6 +25,9 @@ export default function TabLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="medicine/[id]" />
             <Stack.Screen name="checkout" />
+            <Stack.Screen name="order/[id]" />
+            <Stack.Screen name="payment/return" />
+            <Stack.Screen name="payment/cancel" />
             <Stack.Screen name="auth/login" options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="auth/register" options={{ headerShown: false, presentation: 'modal' }} />
           </Stack>

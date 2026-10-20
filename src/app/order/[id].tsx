@@ -1,7 +1,8 @@
+import { LoadingIndicator } from '@/shared/components/loading-indicator';
 import { Link, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import { AppHeader } from '@/components/app-header';
@@ -10,6 +11,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { cancelOrder, createPayOSLink, getOrderById } from '@/features/orders/api/orders';
+import { savePendingPayOSOrder } from '@/features/payments/pending-order';
 import { ApiError } from '@/shared/api/client';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
@@ -32,6 +34,7 @@ export default function OrderDetailScreen() {
       const result = await createPayOSLink(orderId);
       const checkout = new URL(result.checkoutUrl);
       if (checkout.protocol !== 'https:' || !(checkout.hostname === 'pay.payos.vn' || checkout.hostname.endsWith('.payos.vn'))) throw new Error('Đường dẫn thanh toán không hợp lệ.');
+      await savePendingPayOSOrder(orderId);
       await WebBrowser.openBrowserAsync(checkout.toString());
       await detail.refetch();
       await queryClient.invalidateQueries({ queryKey: ['orders', 'my'] });
@@ -44,7 +47,7 @@ export default function OrderDetailScreen() {
 
   return <ThemedView style={styles.page}><SafeAreaView style={styles.safe} edges={['top', 'bottom']}><AppHeader /><ScrollView contentContainerStyle={styles.content}>
     <ThemedText style={styles.title}>Chi tiết đơn hàng</ThemedText>
-    {!user ? <View style={styles.notice}><ThemedText>Đăng nhập để xem đơn hàng.</ThemedText><Link href="/auth/login" style={{ color: theme.tint, marginTop: 10 }}>Đăng nhập</Link></View> : detail.isLoading ? <ActivityIndicator color={theme.tint} /> : detail.error ? <View style={styles.notice}><ThemedText style={styles.error}>{detail.error instanceof ApiError ? detail.error.message : 'Không tải được đơn hàng.'}</ThemedText><Pressable onPress={() => void detail.refetch()}><ThemedText style={{ color: theme.tint, marginTop: 10 }}>Thử lại</ThemedText></Pressable></View> : order ? <>
+    {!user ? <View style={styles.notice}><ThemedText>Đăng nhập để xem đơn hàng.</ThemedText><Link href="/auth/login" style={{ color: theme.tint, marginTop: 10 }}>Đăng nhập</Link></View> : detail.isLoading ? <LoadingIndicator size={60} color={theme.tint} /> : detail.error ? <View style={styles.notice}><ThemedText style={styles.error}>{detail.error instanceof ApiError ? detail.error.message : 'Không tải được đơn hàng.'}</ThemedText><Pressable onPress={() => void detail.refetch()}><ThemedText style={{ color: theme.tint, marginTop: 10 }}>Thử lại</ThemedText></Pressable></View> : order ? <>
       <View style={styles.summary}><View style={styles.row}><ThemedText style={styles.code}>#{order.id.slice(-8).toUpperCase()}</ThemedText><ThemedText style={[styles.status, { color: theme.tint }]}>{orderLabels[order.status] ?? order.status}</ThemedText></View><ThemedText themeColor="textSecondary" style={styles.meta}>{new Date(order.createdAt).toLocaleString('vi-VN')}</ThemedText><ThemedText themeColor="textSecondary" style={styles.meta}>{order.paymentMethod} · {paymentLabels[order.paymentStatus] ?? order.paymentStatus}</ThemedText></View>
       <ThemedText style={styles.section}>Sản phẩm</ThemedText>
       {order.items.map((item) => <View key={item.id} style={[styles.item, { borderBottomColor: theme.backgroundElement }]}><View style={styles.itemTitle}><ThemedText style={styles.itemName}>{item.medicine?.name ?? `Sản phẩm ${item.medicineId}`}</ThemedText><ThemedText themeColor="textSecondary">× {item.quantity}</ThemedText></View><ThemedText themeColor="textSecondary" style={styles.meta}>{money.format(Number(item.unitPrice))} / sản phẩm</ThemedText></View>)}
@@ -52,7 +55,7 @@ export default function OrderDetailScreen() {
       <ThemedText style={styles.section}>Thanh toán</ThemedText><View style={styles.block}>{order.subtotalAmount !== undefined ? <View style={styles.row}><ThemedText themeColor="textSecondary">Tạm tính</ThemedText><ThemedText>{money.format(Number(order.subtotalAmount))}</ThemedText></View> : null}{Number(order.discountAmount ?? 0) > 0 ? <View style={styles.row}><ThemedText themeColor="textSecondary">Giảm giá{order.couponCode ? ` (${order.couponCode})` : ''}</ThemedText><ThemedText>{money.format(Number(order.discountAmount))}</ThemedText></View> : null}<View style={[styles.row, styles.totalRow]}><ThemedText style={styles.itemName}>Tổng cộng</ThemedText><ThemedText style={[styles.total, { color: theme.tint }]}>{money.format(Number(order.totalAmount))}</ThemedText></View></View>
       {actionError ? <ThemedText accessibilityRole="alert" style={styles.error}>{actionError}</ThemedText> : null}
       {canPay ? <Pressable accessibilityRole="button" onPress={() => void pay()} style={[styles.primary, { backgroundColor: theme.tint }]}><ThemedText style={styles.primaryText}>Tiếp tục thanh toán PayOS</ThemedText></Pressable> : null}
-      {canCancel ? <Pressable accessibilityRole="button" disabled={cancel.isPending} onPress={confirmCancel} style={[styles.cancel, { borderColor: theme.backgroundSelected }]}>{cancel.isPending ? <ActivityIndicator color={theme.tint} /> : <ThemedText style={styles.cancelText}>Hủy đơn hàng</ThemedText>}</Pressable> : null}
+      {canCancel ? <Pressable accessibilityRole="button" disabled={cancel.isPending} onPress={confirmCancel} style={[styles.cancel, { borderColor: theme.backgroundSelected }]}>{cancel.isPending ? <LoadingIndicator size="small" color={theme.tint} /> : <ThemedText style={styles.cancelText}>Hủy đơn hàng</ThemedText>}</Pressable> : null}
     </> : null}
   </ScrollView></SafeAreaView></ThemedView>;
 }

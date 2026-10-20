@@ -1,3 +1,4 @@
+import { LoadingIndicator } from '@/shared/components/loading-indicator';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AppHeader } from '@/components/app-header';
@@ -5,7 +6,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { Image } from 'expo-image';
 import type { PropsWithChildren, ReactNode } from 'react';
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export function AuthLayout({ title, subtitle, footer, children, onBack }: PropsWithChildren<{ title: string; subtitle: string; footer: ReactNode; onBack: () => void }>) {
@@ -56,7 +57,7 @@ export function AuthField({ label, error, secureToggle, ...inputProps }: TextInp
 export function AuthPrimaryButton({ title, busy, disabled, onPress }: { title: string; busy: boolean; disabled?: boolean; onPress: () => void }) {
   const theme = useTheme();
   return <Pressable accessibilityRole="button" accessibilityState={{ disabled: Boolean(disabled || busy) }} disabled={disabled || busy} onPress={onPress} style={({ pressed }) => [styles.primary, { backgroundColor: theme.tint, opacity: disabled || busy ? 0.55 : pressed ? 0.82 : 1 }]}>
-    {busy ? <View style={styles.buttonLoading}><ActivityIndicator color="#FFFFFF" /><ThemedText style={styles.primaryText}>Đang xử lý</ThemedText></View> : <ThemedText style={styles.primaryText}>{title}</ThemedText>}
+    {busy ? <View style={styles.buttonLoading}><LoadingIndicator color="#FFFFFF" /><ThemedText style={styles.primaryText}>Đang xử lý</ThemedText></View> : <ThemedText style={styles.primaryText}>{title}</ThemedText>}
   </Pressable>;
 }
 

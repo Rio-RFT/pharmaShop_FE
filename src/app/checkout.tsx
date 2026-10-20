@@ -1,7 +1,8 @@
+import { LoadingIndicator } from '@/shared/components/loading-indicator';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
@@ -9,6 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/features/auth/auth-provider';
 import { clearCart, getCart } from '@/features/cart/api/cart';
 import { createOrder, createPayOSLink } from '@/features/orders/api/orders';
+import { savePendingPayOSOrder } from '@/features/payments/pending-order';
 import { ApiError } from '@/shared/api/client';
 import { useTheme } from '@/hooks/use-theme';
 import { AppHeader } from '@/components/app-header';
@@ -42,6 +44,7 @@ export default function CheckoutScreen() {
         const payos = await createPayOSLink(createdOrder.id);
         const checkout = new URL(payos.checkoutUrl);
         if (checkout.protocol !== 'https:' || !(checkout.hostname === 'pay.payos.vn' || checkout.hostname.endsWith('.payos.vn'))) throw new Error('Đường dẫn thanh toán không hợp lệ.');
+        await savePendingPayOSOrder(createdOrder.id);
         await WebBrowser.openBrowserAsync(checkout.toString());
       } catch (reason) {
         setError(reason instanceof ApiError ? reason.message : 'Không mở được PayOS. Đơn hàng đã tạo và vẫn chờ thanh toán.');
@@ -118,14 +121,14 @@ export default function CheckoutScreen() {
 
   return <ThemedView style={styles.page}><SafeAreaView style={styles.safe} edges={['top', 'bottom']}><AppHeader /><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <ThemedText style={styles.title}>Thông tin giao hàng</ThemedText>
-    {authLoading || cart.isLoading ? <ActivityIndicator color={theme.tint} /> : !user ? <View style={styles.notice}><ThemedText themeColor="textSecondary">Đăng nhập để tiếp tục đặt hàng.</ThemedText><Link href="/auth/login" style={{ color: theme.tint, fontWeight: '700', marginTop: 10 }}>Đăng nhập</Link></View> : cart.error ? <ThemedText style={styles.error}>{cart.error instanceof ApiError ? cart.error.message : 'Không tải được giỏ hàng.'}</ThemedText> : !cart.data?.items.length ? <View style={styles.notice}><ThemedText themeColor="textSecondary">Giỏ hàng đang trống.</ThemedText><Link href="/" style={{ color: theme.tint, marginTop: 10 }}>Khám phá sản phẩm</Link></View> : <>
+    {authLoading || cart.isLoading ? <LoadingIndicator size={60} color={theme.tint} /> : !user ? <View style={styles.notice}><ThemedText themeColor="textSecondary">Đăng nhập để tiếp tục đặt hàng.</ThemedText><Link href="/auth/login" style={{ color: theme.tint, fontWeight: '700', marginTop: 10 }}>Đăng nhập</Link></View> : cart.error ? <ThemedText style={styles.error}>{cart.error instanceof ApiError ? cart.error.message : 'Không tải được giỏ hàng.'}</ThemedText> : !cart.data?.items.length ? <View style={styles.notice}><ThemedText themeColor="textSecondary">Giỏ hàng đang trống.</ThemedText><Link href="/" style={{ color: theme.tint, marginTop: 10 }}>Khám phá sản phẩm</Link></View> : <>
       <ThemedText style={styles.label}>Mã giảm giá</ThemedText>
       <TextInput value={couponCode} onChangeText={setCouponCode} autoCapitalize="characters" autoCorrect={false} accessibilityLabel="Mã giảm giá" placeholder="Nhập mã ưu đãi nếu có" placeholderTextColor={theme.textSecondary} style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]} />
       <ThemedText themeColor="textSecondary" style={styles.couponHint}>Mã được xác minh khi đặt hàng. Mức giảm do máy chủ tính theo điều kiện áp dụng.</ThemedText>
       <ThemedText style={styles.label}>Tên người nhận</ThemedText><TextInput value={receiverName} onChangeText={setReceiverName} accessibilityLabel="Tên người nhận" placeholder="Họ và tên" placeholderTextColor={theme.textSecondary} style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]} />
       <ThemedText style={styles.label}>Số điện thoại</ThemedText><TextInput value={receiverPhone} onChangeText={setReceiverPhone} keyboardType="phone-pad" accessibilityLabel="Số điện thoại người nhận" placeholder="Số điện thoại" placeholderTextColor={theme.textSecondary} style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]} />
       <ThemedText style={styles.sectionTitle}>Địa chỉ giao hàng</ThemedText>
-      {addressQuery.isLoading ? <ActivityIndicator color={theme.tint} /> : addressQuery.error ? <View style={styles.addressError}><ThemedText style={styles.error}>{addressQuery.error instanceof ApiError ? addressQuery.error.message : 'Không tải được địa chỉ đã lưu.'}</ThemedText><Pressable accessibilityRole="button" onPress={() => void addressQuery.refetch()}><ThemedText style={{ color: theme.tint, marginTop: 8 }}>Thử tải lại</ThemedText></Pressable></View> : addressQuery.data?.map((address) => {
+      {addressQuery.isLoading ? <LoadingIndicator size={60} color={theme.tint} /> : addressQuery.error ? <View style={styles.addressError}><ThemedText style={styles.error}>{addressQuery.error instanceof ApiError ? addressQuery.error.message : 'Không tải được địa chỉ đã lưu.'}</ThemedText><Pressable accessibilityRole="button" onPress={() => void addressQuery.refetch()}><ThemedText style={{ color: theme.tint, marginTop: 8 }}>Thử tải lại</ThemedText></Pressable></View> : addressQuery.data?.map((address) => {
         const chosen = selectedAddressId === address.id;
         return <Pressable key={address.id} accessibilityRole="radio" accessibilityState={{ checked: chosen }} onPress={() => selectAddress(address)} style={[styles.savedAddress, { borderColor: chosen ? theme.tint : theme.backgroundSelected, backgroundColor: chosen ? theme.backgroundSelected : theme.background }]}>
           <View style={styles.savedAddressHeading}><ThemedText style={styles.savedAddressName}>{address.receiverName}</ThemedText>{address.isDefault ? <ThemedText style={[styles.defaultTag, { color: theme.tint }]}>Mặc định</ThemedText> : null}</View>
@@ -141,7 +144,7 @@ export default function CheckoutScreen() {
         <TextInput value={street} onChangeText={setStreet} accessibilityLabel="Số nhà và tên đường" placeholder="Ví dụ: 12 Nguyễn Trãi" placeholderTextColor={theme.textSecondary} style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]} />
         <VietnamAddressFields value={location} onChange={setLocation} />
         <Pressable accessibilityRole="button" disabled={saveAddress.isPending || !street.trim() || !location.province || !location.district || !location.ward} onPress={persistNewAddress} style={[styles.saveAddressButton, { borderColor: theme.tint, opacity: saveAddress.isPending || !street.trim() || !location.province || !location.district || !location.ward ? 0.5 : 1 }]}>
-          {saveAddress.isPending ? <ActivityIndicator color={theme.tint} /> : <ThemedText style={{ color: theme.tint, fontWeight: '700' }}>Lưu địa chỉ vào tài khoản</ThemedText>}
+          {saveAddress.isPending ? <LoadingIndicator size="small" color={theme.tint} /> : <ThemedText style={{ color: theme.tint, fontWeight: '700' }}>Lưu địa chỉ vào tài khoản</ThemedText>}
         </Pressable>
       </> : null}
       {addressError ? <ThemedText accessibilityRole="alert" style={styles.error}>{addressError}</ThemedText> : null}
@@ -149,7 +152,7 @@ export default function CheckoutScreen() {
         {([{ value: 'COD', label: 'Thanh toán khi nhận hàng (COD)' }, { value: 'PAYOS', label: 'Thanh toán trực tuyến qua PayOS' }] as const).map((option) => <Pressable key={option.value} accessibilityRole="radio" accessibilityState={{ checked: paymentMethod === option.value }} onPress={() => setPaymentMethod(option.value)} style={[styles.paymentOption, { borderColor: paymentMethod === option.value ? theme.tint : theme.backgroundSelected }]}><View style={[styles.radio, { borderColor: paymentMethod === option.value ? theme.tint : theme.textSecondary }]}>{paymentMethod === option.value ? <View style={[styles.radioDot, { backgroundColor: theme.tint }]} /> : null}</View><ThemedText style={styles.paymentLabel}>{option.label}</ThemedText></Pressable>)}
       </View>
       {error ? <ThemedText accessibilityRole="alert" style={styles.error}>{error}</ThemedText> : null}
-      <Pressable accessibilityRole="button" disabled={order.isPending || !cart.data?.items.length} onPress={submit} style={[styles.submit, { backgroundColor: theme.tint, opacity: order.isPending || !cart.data?.items.length ? 0.6 : 1 }]}>{order.isPending ? <ActivityIndicator color="#FFFFFF" /> : <ThemedText style={styles.submitText}>Xác nhận đặt hàng</ThemedText>}</Pressable>
+      <Pressable accessibilityRole="button" disabled={order.isPending || !cart.data?.items.length} onPress={submit} style={[styles.submit, { backgroundColor: theme.tint, opacity: order.isPending || !cart.data?.items.length ? 0.6 : 1 }]}>{order.isPending ? <LoadingIndicator color="#FFFFFF" /> : <ThemedText style={styles.submitText}>Xác nhận đặt hàng</ThemedText>}</Pressable>
     </>}
   </ScrollView></SafeAreaView></ThemedView>;
 }
