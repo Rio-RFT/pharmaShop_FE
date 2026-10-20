@@ -1,8 +1,8 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { Image } from 'expo-image';
-import { useColorScheme, View } from 'react-native';
-import { useEffect, useState } from 'react';
+import { Alert, AppState, Platform, useColorScheme, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 import * as Updates from 'expo-updates';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -17,36 +17,6 @@ import { useTheme } from '@/hooks/use-theme';
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } });
 
 SplashScreen.preventAutoHideAsync();
-
-const UPDATE_CHECK_TIMEOUT_MS = 8_000;
-
-async function prepareAppUpdate() {
-  if (__DEV__ || !Updates.isEnabled) return;
-
-  // Do not hold the launch screen indefinitely if the device is offline or EAS is slow.
-  let timedOut = false;
-  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<null>((resolve) => {
-    timeoutHandle = setTimeout(() => {
-      timedOut = true;
-      resolve(null);
-    }, UPDATE_CHECK_TIMEOUT_MS);
-  });
-
-  try {
-    const result = await Promise.race([Updates.checkForUpdateAsync(), timeout]);
-    if (!result || timedOut || !result.isAvailable) return;
-
-    const fetched = await Promise.race([Updates.fetchUpdateAsync(), timeout]);
-    if (fetched && fetched.isNew && !timedOut) {
-      await Updates.reloadAsync();
-    }
-  } catch {
-    // Keep the currently installed bundle available when update checks fail.
-  } finally {
-    if (timeoutHandle) clearTimeout(timeoutHandle);
-  }
-}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -66,21 +36,75 @@ export default function RootLayout() {
 function AppBootstrap() {
   const { loading: authLoading } = useAuth();
   const theme = useTheme();
-  const [updateReady, setUpdateReady] = useState(__DEV__ || !Updates.isEnabled);
+  const checkingUpdate = useRef(false);
+  const updatePromptVisible = useRef(false);
+  const applyingUpdate = useRef(false);
 
   useEffect(() => {
     void SplashScreen.hideAsync();
   }, []);
 
   useEffect(() => {
-    let active = true;
-    void prepareAppUpdate().finally(() => {
-      if (active) setUpdateReady(true);
+    if (__DEV__ || Platform.OS !== 'android' || !Updates.isEnabled) return;
+
+    const checkForUpdate = async () => {
+      if (checkingUpdate.current || updatePromptVisible.current || applyingUpdate.current) return;
+      checkingUpdate.current = true;
+
+      try {
+        const result = await Updates.checkForUpdateAsync();
+        if (!result.isAvailable) return;
+
+        updatePromptVisible.current = true;
+        Alert.alert(
+          'Có bản cập nhật mới',
+          'PharmaShop đã có phiên bản mới. Bạn muốn tải và cập nhật ngay không?',
+          [
+            {
+              text: 'Để sau',
+              style: 'cancel',
+              onPress: () => { updatePromptVisible.current = false; },
+            },
+            {
+              text: 'Cập nhật',
+              onPress: () => {
+                applyingUpdate.current = true;
+                void (async () => {
+                  try {
+                    const update = await Updates.fetchUpdateAsync();
+                    if (update.isNew) {
+                      await Updates.reloadAsync();
+                    } else {
+                      updatePromptVisible.current = false;
+                      applyingUpdate.current = false;
+                    }
+                  } catch {
+                    updatePromptVisible.current = false;
+                    applyingUpdate.current = false;
+                    Alert.alert('Không thể cập nhật', 'Vui lòng kiểm tra kết nối mạng và thử lại khi mở ứng dụng lần sau.');
+                  }
+                })();
+              },
+            },
+          ],
+          { cancelable: true, onDismiss: () => { updatePromptVisible.current = false; } },
+        );
+      } catch {
+        // Update checks are best effort; keep the installed app usable offline.
+      } finally {
+        checkingUpdate.current = false;
+      }
+    };
+
+    void checkForUpdate();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void checkForUpdate();
     });
-    return () => { active = false; };
+
+    return () => subscription.remove();
   }, []);
 
-  if (!updateReady || authLoading) {
+  if (authLoading) {
     return (
       <ThemedView style={styles.startupPage}>
         <Image
@@ -95,7 +119,7 @@ function AppBootstrap() {
           <LoadingIndicator size={60} color={theme.tint} />
         </View>
         <ThemedText themeColor="textSecondary" style={styles.startupStatus} accessibilityLiveRegion="polite">
-          {!updateReady ? 'Đang kiểm tra bản cập nhật…' : 'Đang chuẩn bị ứng dụng…'}
+          Đang chuẩn bị ứng dụng…
         </ThemedText>
       </ThemedView>
     );
