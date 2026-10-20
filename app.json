@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "pharmaShop",
+    "name": "PharmaShop",
     "slug": "pharmaShop",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -21,18 +21,17 @@
     },
     "web": {
       "output": "server",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/logo.svg"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#F3F7F5"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

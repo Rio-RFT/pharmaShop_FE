@@ -1,56 +1,18 @@
-# Welcome to your Expo app 👋
+# PharmaShop
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Ứng dụng nhà thuốc trực tuyến cho iOS, Android và web, xây dựng bằng React Native, Expo và Expo Router. Logo dùng từ `assets/logo.svg`; giao diện tự theo theme thiết bị.
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Chạy ứng dụng
 
 ```bash
-npm run reset-project
+npm install
+npm run start
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+## Kết nối API
 
-### Other setup steps
+Ứng dụng yêu cầu `EXPO_PUBLIC_API_URL` trong `.env` trên mọi nền tảng; không tự chọn host theo Android/iOS/web. Đặt biến này thành URL backend có thể truy cập được từ thiết bị hoặc trình duyệt (bao gồm `/api/v1`, ví dụ `http://<IP-máy-chạy-backend>:1111/api/v1` cho thiết bị trong cùng mạng), rồi khởi động lại Expo. Xem `.env.example`.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Trang chủ và danh mục gọi `GET /medicines/search` và `GET /medicines/categories`; trang chi tiết gọi `GET /medicines/:id`. Tài khoản hỗ trợ đăng ký, đăng nhập, lưu JWT trong SecureStore trên iOS/Android và làm mới token. Giỏ hàng dùng các route `/cart`; hồ sơ/địa chỉ đọc từ `/users/profile`; đơn hàng dùng `/orders/my`; checkout tạo đơn COD qua `POST /orders`. API client xử lý response envelope, lỗi và timeout theo backend.
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Đăng xuất xóa token và cache riêng tư. Web chỉ giữ phiên trong bộ nhớ hiện tại. OTP, Google OAuth, PayOS và chỉnh sửa địa chỉ chưa được tích hợp.
