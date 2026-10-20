@@ -27,7 +27,7 @@ export function AppHeader() {
   }, [registerCartTarget]);
 
   return <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: theme.backgroundElement }]}>
-    <Image source={require('@/assets/logo.svg')} style={styles.logo} contentFit="contain" accessibilityLabel="Logo PharmaShop" />
+    <Image source={require('../../public/logo.png')} style={styles.logo} contentFit="contain" accessibilityLabel="Logo PharmaShop" />
     <View style={styles.actions}>
       <View ref={targetRef} collapsable={false} style={styles.target}>
         <Pressable accessibilityRole="button" accessibilityLabel={count ? `Giỏ hàng, ${count} sản phẩm` : 'Giỏ hàng'} onPress={() => router.navigate('/cart')} hitSlop={8} style={styles.action}>
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   target: { width: 44, height: 44 },
   action: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   divider: { width: StyleSheet.hairlineWidth, height: 23, marginHorizontal: 2 },
-  logo: { width: 30, height: 34 },
+  logo: { width: 36, height: 40 },
   badge: { position: 'absolute', top: 1, right: 0, minWidth: 17, height: 17, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   badgeText: { color: '#FFFFFF', fontSize: 9, lineHeight: 12, fontWeight: '800' },
 });

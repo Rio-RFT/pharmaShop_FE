@@ -1,12 +1,12 @@
 @echo off
 setlocal DisableDelayedExpansion
-title PharmaShop - Publish EAS Update
+title PharmaShop - Android EAS Update
 
 pushd "%~dp0"
 
 echo.
 echo ==========================================
-echo       PharmaShop - Publish EAS Update
+echo       PharmaShop - Android EAS Update
 echo ==========================================
 echo.
 echo Chon kenh cap nhat:
@@ -34,13 +34,13 @@ choice /c YN /n /m "Xac nhan publish ban cap nhat nay? [Y/N] "
 if errorlevel 2 goto cancelled
 
 echo.
-echo Dang publish len EAS Update...
-call npx.cmd eas-cli@latest update --channel "%CHANNEL%" --environment "%CHANNEL%" --message "%UPDATE_MESSAGE%"
+echo Dang publish ban cap nhat Android len EAS Update...
+call npx.cmd eas-cli@latest update --platform android --channel "%CHANNEL%" --environment "%CHANNEL%" --message "%UPDATE_MESSAGE%"
 set "UPDATE_EXIT_CODE=%ERRORLEVEL%"
 
 echo.
 if "%UPDATE_EXIT_CODE%"=="0" (
-  echo Publish thanh cong. Thiet bi se tai ban cap nhat khi mo app.
+  echo Publish thanh cong. Thiet bi Android se tai ban cap nhat khi mo app.
 ) else (
   echo Publish that bai, ma loi: %UPDATE_EXIT_CODE%
 )

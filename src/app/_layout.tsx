@@ -1,12 +1,18 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
-import { useEffect } from 'react';
+import { Image } from 'expo-image';
+import { useColorScheme, View } from 'react-native';
+import { useEffect, useState } from 'react';
 import * as Updates from 'expo-updates';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/features/auth/auth-provider';
 import { CartFlightProvider } from '@/components/cart-flight-provider';
+import { useAuth } from '@/features/auth/auth-provider';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { LoadingIndicator } from '@/shared/components/loading-indicator';
+import { useTheme } from '@/hooks/use-theme';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } });
 
@@ -42,36 +48,81 @@ async function prepareAppUpdate() {
   }
 }
 
-export default function TabLayout() {
+export default function RootLayout() {
   const colorScheme = useColorScheme();
-  useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      await prepareAppUpdate();
-      if (mounted) await SplashScreen.hideAsync();
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <CartFlightProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="medicine/[id]" />
-            <Stack.Screen name="checkout" />
-            <Stack.Screen name="order/[id]" />
-            <Stack.Screen name="payment/return" />
-            <Stack.Screen name="payment/cancel" />
-            <Stack.Screen name="auth/login" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="auth/register" options={{ headerShown: false, presentation: 'modal' }} />
-          </Stack>
+            <AppBootstrap />
           </CartFlightProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );
 }
+
+function AppBootstrap() {
+  const { loading: authLoading } = useAuth();
+  const theme = useTheme();
+  const [updateReady, setUpdateReady] = useState(__DEV__ || !Updates.isEnabled);
+
+  useEffect(() => {
+    void SplashScreen.hideAsync();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void prepareAppUpdate().finally(() => {
+      if (active) setUpdateReady(true);
+    });
+    return () => { active = false; };
+  }, []);
+
+  if (!updateReady || authLoading) {
+    return (
+      <ThemedView style={styles.startupPage}>
+        <Image
+          source={require('../../public/logo.png')}
+          style={styles.startupLogo}
+          contentFit="contain"
+          accessibilityLabel="Logo PharmaShop"
+        />
+        <ThemedText style={styles.startupTitle}>PharmaShop</ThemedText>
+        <ThemedText themeColor="textSecondary" style={styles.startupSubtitle}>Chăm sóc sức khỏe mỗi ngày</ThemedText>
+        <View style={styles.startupLoader}>
+          <LoadingIndicator size={60} color={theme.tint} />
+        </View>
+        <ThemedText themeColor="textSecondary" style={styles.startupStatus} accessibilityLiveRegion="polite">
+          {!updateReady ? 'Đang kiểm tra bản cập nhật…' : 'Đang chuẩn bị ứng dụng…'}
+        </ThemedText>
+      </ThemedView>
+    );
+  }
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="products" />
+      <Stack.Screen name="search" />
+      <Stack.Screen name="category/[name]" />
+      <Stack.Screen name="medicine/[id]" />
+      <Stack.Screen name="checkout" />
+      <Stack.Screen name="order/[id]" />
+      <Stack.Screen name="payment/return" />
+      <Stack.Screen name="payment/cancel" />
+      <Stack.Screen name="auth/login" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="auth/register" options={{ presentation: 'modal' }} />
+    </Stack>
+  );
+}
+
+const styles = {
+  startupPage: { flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const, paddingHorizontal: 28 },
+  startupLogo: { width: 132, height: 142 },
+  startupTitle: { fontSize: 24, lineHeight: 31, fontWeight: '800' as const, marginTop: 18 },
+  startupSubtitle: { fontSize: 14, marginTop: 4 },
+  startupLoader: { marginTop: 48 },
+  startupStatus: { fontSize: 12, marginTop: 16 },
+};

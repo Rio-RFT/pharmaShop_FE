@@ -40,7 +40,7 @@ export function CartFlightProvider({ children }: PropsWithChildren) {
     <View style={styles.root}>
       {children}
       {flight ? <Animated.View pointerEvents="none" style={[styles.flight, { left, top, width: size, height: size, opacity }]}>
-        <Image source={flight.imageUrl ? { uri: flight.imageUrl } : require('@/assets/logo.svg')} style={styles.flightImage} contentFit="cover" />
+        <Image source={flight.imageUrl ? { uri: flight.imageUrl } : require('../../public/logo.png')} style={styles.flightImage} contentFit="contain" />
       </Animated.View> : null}
     </View>
   </CartFlightContext.Provider>;
