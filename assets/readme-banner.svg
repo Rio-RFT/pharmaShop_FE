@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="90" y1="30" x2="1504" y2="560" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#092C2A"/>
+      <stop offset="1" stop-color="#123F3B"/>
+    </linearGradient>
+    <linearGradient id="pill" x1="1145" y1="140" x2="1390" y2="390" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B9F4D5"/>
+      <stop offset="1" stop-color="#65D6C0"/>
+    </linearGradient>
+    <filter id="shadow" x="1050" y="75" width="470" height="430" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="24"/>
+    </filter>
+    <clipPath id="banner-clip" clipPathUnits="userSpaceOnUse">
+      <rect width="1600" height="520" rx="36"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#banner-clip)">
+  <rect width="1600" height="520" rx="36" fill="url(#bg)"/>
+  <circle cx="1424" cy="42" r="190" fill="#2BBFA8" fill-opacity=".12"/>
+  <circle cx="1040" cy="490" r="210" fill="#8CE6C3" fill-opacity=".08"/>
+  <path d="M0 433C220 375 402 502 646 435c203-56 352-46 507 13 160 61 299 49 447-8v80H0v-87Z" fill="#0B3532" fill-opacity=".72"/>
+  <g opacity=".36" stroke="#A8EAD1" stroke-width="2">
+    <path d="M1055 94v330M1218 42v448M1465 92v330"/>
+    <path d="M960 190h510M985 348h485"/>
+  </g>
+  <g transform="translate(1120 92) rotate(13 150 150)">
+    <rect x="37" y="58" width="255" height="300" rx="46" fill="#061E1D" fill-opacity=".34" filter="url(#shadow)"/>
+    <rect x="46" y="50" width="250" height="300" rx="44" fill="#F7FFFA"/>
+    <path d="M46 94c0-24.3 19.7-44 44-44h162c24.3 0 44 19.7 44 44v43H46V94Z" fill="#DDF8EA"/>
+    <rect x="77" y="77" width="53" height="53" rx="17" fill="#11A889"/>
+    <path d="M103.5 89v29m-14.5-14.5h29" stroke="white" stroke-width="6" stroke-linecap="round"/>
+    <rect x="77" y="166" width="188" height="13" rx="6.5" fill="#D7E8E0"/>
+    <rect x="77" y="192" width="140" height="13" rx="6.5" fill="#E6F0EB"/>
+    <rect x="77" y="231" width="188" height="73" rx="20" fill="#EAF7F0"/>
+    <path d="M112 249v37m-18.5-18.5h37" stroke="#21A987" stroke-width="8" stroke-linecap="round"/>
+    <rect x="162" y="249" width="78" height="11" rx="5.5" fill="#A4CBB8"/>
+    <rect x="162" y="269" width="58" height="9" rx="4.5" fill="#C7DED2"/>
+  </g>
+  <g transform="translate(1375 330) rotate(-28)">
+    <rect width="154" height="68" rx="34" fill="#F6FFF9"/>
+    <path d="M77 0h43a34 34 0 0 1 0 68H77V0Z" fill="url(#pill)"/>
+    <path d="M77 5v58" stroke="#D2E9DE" stroke-width="3"/>
+  </g>
+  <rect x="1000" y="95" width="53" height="53" rx="17" fill="#E0F8EB"/>
+  <path d="M1026.5 107v29m-14.5-14.5h29" stroke="#11A889" stroke-width="6" stroke-linecap="round"/>
+  <rect x="1022" y="355" width="43" height="43" rx="14" fill="#B8F1D7" fill-opacity=".9"/>
+  <path d="M1043.5 365v23m-11.5-11.5h23" stroke="#107D69" stroke-width="5" stroke-linecap="round"/>
+  <text x="100" y="174" fill="#B9F4D5" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="5">CHĂM SÓC SỨC KHỎE MỖI NGÀY</text>
+  <text x="94" y="270" fill="#F4FFF9" font-family="Arial, Helvetica, sans-serif" font-size="82" font-weight="700" letter-spacing="-3">PharmaShop</text>
+  <text x="101" y="326" fill="#D0EAE0" font-family="Arial, Helvetica, sans-serif" font-size="25">Nhà thuốc trực tuyến, ngay trong tầm tay.</text>
+  <rect x="100" y="376" width="182" height="44" rx="22" fill="#164D45" stroke="#4F9B83"/>
+  <text x="126" y="405" fill="#E3FFF2" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700">iOS · Android · Web</text>
+  </g>
+</svg>
