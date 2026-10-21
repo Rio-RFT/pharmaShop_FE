@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
-const keys = { access: 'pharmashop.accessToken', refresh: 'pharmashop.refreshToken', user: 'pharmashop.user' } as const;
+const keys = { access: 'pharmashop.accessToken', refresh: 'pharmashop.refreshToken', user: 'pharmashop.user', push: 'pharmashop.pushToken' } as const;
 let webSession: Partial<Record<keyof typeof keys, string>> = {};
 const expirationListeners = new Set<() => void>();
 
@@ -30,7 +30,21 @@ export async function saveCredentials(values: { accessToken: string; refreshToke
   ]);
 }
 
+export async function readPushToken() {
+  return Platform.OS === 'web' ? webSession.push ?? null : SecureStore.getItemAsync(keys.push);
+}
+
+export async function savePushToken(token: string) {
+  if (Platform.OS === 'web') { webSession.push = token; return; }
+  await SecureStore.setItemAsync(keys.push, token);
+}
+
+export async function clearPushToken() {
+  if (Platform.OS === 'web') { delete webSession.push; return; }
+  await SecureStore.deleteItemAsync(keys.push);
+}
+
 export async function clearCredentials() {
-  if (Platform.OS === 'web') { webSession = {}; return; }
-  await Promise.all(Object.values(keys).map((key) => SecureStore.deleteItemAsync(key)));
+  if (Platform.OS === 'web') { delete webSession.access; delete webSession.refresh; delete webSession.user; return; }
+  await Promise.all([keys.access, keys.refresh, keys.user].map((key) => SecureStore.deleteItemAsync(key)));
 }

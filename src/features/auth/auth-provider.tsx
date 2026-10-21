@@ -4,6 +4,7 @@ import { ApiError, apiPost } from '@/shared/api/client';
 import { clearCredentials, onSessionExpired, readCredential, saveCredentials } from '@/features/auth/token-storage';
 import { addCartItem } from '@/features/cart/api/cart';
 import type { Medicine } from '@/features/catalog/api/medicines';
+import { unregisterPushDevice } from '@/features/notifications/lib/push-registration';
 
 export type AuthUser = { id: string; fullName: string; phone: string; email: string | null; role: 'CUSTOMER' | 'PHARMACIST' | 'ADMIN'; avatarUrl: string | null };
 export type GuestCartEntry = { medicine: Medicine; quantity: number };
@@ -28,7 +29,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return () => { active = false; };
   }, []);
 
-  useEffect(() => onSessionExpired(() => { void clearCredentials(); setUser(null); queryClient.removeQueries({ queryKey: ['cart'] }); queryClient.removeQueries({ queryKey: ['orders'] }); queryClient.removeQueries({ queryKey: ['profile'] }); queryClient.removeQueries({ queryKey: ['addresses'] }); }), [queryClient]);
+  useEffect(() => onSessionExpired(() => { void clearCredentials(); setUser(null); queryClient.removeQueries({ queryKey: ['cart'] }); queryClient.removeQueries({ queryKey: ['orders'] }); queryClient.removeQueries({ queryKey: ['profile'] }); queryClient.removeQueries({ queryKey: ['addresses'] }); queryClient.removeQueries({ queryKey: ['notifications'] }); }), [queryClient]);
 
   const acceptSession = useCallback(async (response: AuthResponse) => {
     await saveCredentials({ accessToken: response.accessToken, refreshToken: response.refreshToken, user: JSON.stringify(response.user) });
@@ -83,12 +84,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [acceptSession, syncGuestCart]);
 
   const signOut = useCallback(async () => {
+    await unregisterPushDevice();
     await clearCredentials();
     setUser(null);
     queryClient.removeQueries({ queryKey: ['cart'] });
     queryClient.removeQueries({ queryKey: ['orders'] });
     queryClient.removeQueries({ queryKey: ['profile'] });
     queryClient.removeQueries({ queryKey: ['addresses'] });
+    queryClient.removeQueries({ queryKey: ['notifications'] });
   }, [queryClient]);
 
   const value = useMemo(() => ({ user, loading, guestItems, guestCartSyncError, addGuestItem, setGuestQuantity, removeGuestItem, retryGuestCartSync: syncGuestCart, signIn, signUp, signOut }), [user, loading, guestItems, guestCartSyncError, addGuestItem, setGuestQuantity, removeGuestItem, syncGuestCart, signIn, signUp, signOut]);

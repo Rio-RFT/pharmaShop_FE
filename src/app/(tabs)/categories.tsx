@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { CategoryArtwork } from '@/features/catalog/components/category-artwork';
 import { useMedicineCategories } from '@/features/catalog/hooks/use-medicine-categories';
 import { LoadingIndicator } from '@/shared/components/loading-indicator';
 import { useTheme } from '@/hooks/use-theme';
@@ -31,11 +32,7 @@ export default function CategoriesScreen() {
               style={({ pressed }) => [styles.row, { borderBottomColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}
             >
               <View style={[styles.mark, { backgroundColor: theme.backgroundSelected }]}>
-                <SymbolView
-                  name={{ ios: 'cross.case', android: 'medical_services', web: 'medical_services' }}
-                  size={19}
-                  tintColor={theme.tint}
-                />
+                <CategoryArtwork category={item} index={index} imageStyle={styles.categoryImage} fallbackStyle={styles.categoryMark} />
               </View>
               <ThemedText style={styles.name}>{item}</ThemedText>
               <SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={16} tintColor={theme.textSecondary} />
@@ -77,7 +74,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 27, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6 },
   subtitle: { fontSize: 14, marginTop: 3 },
   row: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 13, borderBottomWidth: StyleSheet.hairlineWidth },
-  mark: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  mark: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  categoryImage: { width: 42, height: 42 },
+  categoryMark: { fontSize: 16 },
   name: { flex: 1, fontSize: 15, fontWeight: '600' },
   state: { minHeight: 240, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 24 },
   stateTitle: { fontSize: 16, fontWeight: '700', textAlign: 'center' },

@@ -1,4 +1,4 @@
-import { Link, useRouter } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Keyboard } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/use-theme';
 export default function LoginScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { notificationId } = useLocalSearchParams<{ notificationId?: string }>();
   const { signIn } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +26,7 @@ export default function LoginScreen() {
     if (errors.identifier || errors.password) return;
     Keyboard.dismiss();
     setBusy(true); setFormError(null);
-    try { await signIn(identifier.trim(), password); router.back(); }
+    try { await signIn(identifier.trim(), password); if (notificationId) router.replace(`/notifications/${notificationId}` as import('expo-router').Href); else router.back(); }
     catch (reason) { setFormError(reason instanceof ApiError ? reason.message : 'Đăng nhập chưa thành công. Vui lòng thử lại.'); }
     finally { setBusy(false); }
   };

@@ -39,13 +39,23 @@ export async function apiDelete<TResponse>(path: string): Promise<TResponse> {
   return apiRequest<TResponse>(`${API_BASE_URL}${path}`, { method: 'DELETE' });
 }
 
+export async function apiDeleteWithBody<TResponse, TBody>(path: string, body: TBody): Promise<TResponse> {
+  return apiRequest<TResponse>(`${API_BASE_URL}${path}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
 async function apiRequest<T>(url: string, init?: RequestInit, allowRefresh = true): Promise<T> {
   try {
     const headers = new Headers(init?.headers);
     const accessToken = await readCredential('access');
     if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
     const method = (init?.method ?? 'GET').toUpperCase();
-    const maxAttempts = method === 'GET' ? 3 : 1;
+    // Reads and login can safely be retried when the connection times out.
+    // Do not replay other writes: a timed-out order/cart mutation may have succeeded server-side.
+    const canRetry = method === 'GET' || (method === 'POST' && /\/auth\/login(?:\?|$)/.test(url));
     let response: Response;
 
     for (let attempt = 0; ; attempt += 1) {
@@ -54,15 +64,15 @@ async function apiRequest<T>(url: string, init?: RequestInit, allowRefresh = tru
       try {
         response = await fetch(url, { ...init, headers, signal: controller.signal });
       } catch (error) {
-        if (attempt + 1 >= maxAttempts || !isRetryableNetworkFailure(error)) throw error;
-        await wait(800 * (attempt + 1));
+        if (!canRetry || !isRetryableNetworkFailure(error)) throw error;
+        await wait(getRetryDelay(attempt));
         continue;
       } finally {
         clearTimeout(timeout);
       }
 
-      if (!isRetryableStatus(response.status) || attempt + 1 >= maxAttempts) break;
-      await wait(800 * (attempt + 1));
+      if (!canRetry || !isRetryableStatus(response.status)) break;
+      await wait(getRetryDelay(attempt));
     }
 
     if (response.status === 401 && allowRefresh && !url.endsWith('/auth/refresh-token')) {
@@ -86,7 +96,12 @@ async function apiRequest<T>(url: string, init?: RequestInit, allowRefresh = tru
 }
 
 function isRetryableStatus(status: number) {
-  return status === 502 || status === 503 || status === 504;
+  return status === 408 || status === 502 || status === 503 || status === 504;
+}
+
+function getRetryDelay(attempt: number) {
+  const cappedBackoff = Math.min(1_000 * 2 ** Math.min(attempt, 5), 30_000);
+  return cappedBackoff + Math.floor(Math.random() * 500);
 }
 
 function isRetryableNetworkFailure(error: unknown) {

@@ -7,6 +7,7 @@ import { AppHeader } from '@/components/app-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MedicineListItem } from '@/features/catalog/components/medicine-list-item';
+import { CategoryArtwork } from '@/features/catalog/components/category-artwork';
 import { ProductSearchField } from '@/features/catalog/components/product-search-field';
 import { useMedicineCategories } from '@/features/catalog/hooks/use-medicine-categories';
 import { useMedicineSearch } from '@/features/catalog/hooks/use-medicine-search';
@@ -105,7 +106,6 @@ function HomeProducts() {
 
 function CategoryTile({ name, index, onPress }: { name: string; index: number; onPress: () => void }) {
   const theme = useTheme();
-  const marks = ['Rx', 'V', '✳', '+', '•'];
 
   return (
     <Pressable
@@ -115,7 +115,7 @@ function CategoryTile({ name, index, onPress }: { name: string; index: number; o
       style={({ pressed }) => [styles.category, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.72 : 1 }]}
     >
       <View style={[styles.categoryIcon, { backgroundColor: theme.background }]}>
-        <ThemedText style={[styles.categoryMark, { color: theme.tint }]}>{marks[index % marks.length]}</ThemedText>
+        <CategoryArtwork category={name} index={index} imageStyle={styles.categoryImage} fallbackStyle={styles.categoryMark} />
       </View>
       <ThemedText style={styles.categoryText} numberOfLines={2}>{name}</ThemedText>
     </Pressable>
@@ -139,7 +139,8 @@ const styles = StyleSheet.create({
   categoryList: { gap: 10, paddingBottom: 27 },
   category: { width: 116, minHeight: 112, padding: 12, borderRadius: 14, justifyContent: 'space-between' },
   categoryIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  categoryMark: { fontSize: 18, fontWeight: '800' },
+  categoryImage: { width: 42, height: 42 },
+  categoryMark: { fontSize: 18 },
   categoryText: { fontSize: 12, lineHeight: 16, fontWeight: '600' },
   caption: { fontSize: 12, marginTop: 3 },
   stateText: { paddingVertical: 16 },

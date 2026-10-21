@@ -1,6 +1,7 @@
 import { LoadingIndicator } from '@/shared/components/loading-indicator';
 import { Link, useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +14,9 @@ import { createAddress, deleteAddress, getAddresses, updateAddress, type Address
 import { getProvinceDetail, getProvinces, type DivisionOption } from '@/features/checkout/api/vietnam-provinces';
 import { VietnamAddressFields } from '@/features/checkout/components/vietnam-address-fields';
 import { ApiError } from '@/shared/api/client';
+import { getAppDisplayVersion } from '@/shared/lib/app-version';
+import { useUpdateCheck } from '@/shared/hooks/use-update-check';
+import { getNotifications } from '@/features/notifications/api/notifications';
 
 type Form = AddressInput;
 const emptyForm: Form = { receiverName: '', phone: '', street: '', ward: '', district: '', province: '', isDefault: false };
@@ -21,7 +25,10 @@ export default function AccountScreen() {
   const theme = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const checkForUpdate = useUpdateCheck();
   const { user, loading, signOut } = useAuth();
+  const notificationInbox = useQuery({ queryKey: ['notifications', 'inbox', 1], queryFn: () => getNotifications(1), enabled: !!user, staleTime: 30_000 });
+  const [activeSection, setActiveSection] = useState<'menu' | 'customer' | 'shipping'>('menu');
   const [editing, setEditing] = useState<Address | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [form, setForm] = useState<Form>(emptyForm);
@@ -30,7 +37,7 @@ export default function AccountScreen() {
   const [ward, setWard] = useState<DivisionOption | null>(null);
   const [pendingLocation, setPendingLocation] = useState<{ province: string; district: string; ward: string } | null>(null);
   const [formError, setFormError] = useState('');
-  const addresses = useQuery({ queryKey: ['addresses', user?.id], queryFn: getAddresses, enabled: !!user });
+  const addresses = useQuery({ queryKey: ['addresses', user?.id], queryFn: getAddresses, enabled: !!user && activeSection === 'shipping' });
   const provinces = useQuery({ queryKey: ['vietnam-provinces', 'list'], queryFn: getProvinces, staleTime: 86_400_000 });
   const provinceDetail = useQuery({ queryKey: ['vietnam-provinces', 'detail', province?.code], queryFn: () => getProvinceDetail(province!.code), enabled: province !== null, staleTime: 86_400_000 });
   const setField = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }));
@@ -70,18 +77,29 @@ export default function AccountScreen() {
     { text: 'Xóa', style: 'destructive', onPress: () => remove.mutate(address.id) },
   ]);
 
+  const pageTitle = activeSection === 'menu' ? 'Tài khoản' : activeSection === 'customer' ? 'Thông tin khách hàng' : 'Thông tin giao hàng';
   return <ThemedView style={styles.page}><SafeAreaView style={styles.safe} edges={['top']}><AppHeader /><ScrollView contentContainerStyle={styles.content}>
-    <ThemedText style={styles.title}>Tài khoản</ThemedText><ThemedText themeColor="textSecondary" style={styles.subtitle}>Hồ sơ và địa chỉ nhận hàng</ThemedText>
-    {loading ? <LoadingIndicator size={60} color={theme.tint} /> : user ? <>
+    {activeSection !== 'menu' ? <Pressable accessibilityRole="button" accessibilityLabel="Quay lại tài khoản" onPress={() => setActiveSection('menu')} style={styles.backButton}><ThemedText style={[styles.backText, { color: theme.tint }]}>‹  Tài khoản</ThemedText></Pressable> : null}
+    <ThemedText style={styles.title}>{pageTitle}</ThemedText>
+    <ThemedText themeColor="textSecondary" style={styles.subtitle}>{activeSection === 'menu' ? 'Quản lý thông tin và cài đặt ứng dụng' : activeSection === 'customer' ? 'Thông tin hồ sơ của bạn' : 'Quản lý địa chỉ nhận hàng đã lưu'}</ThemedText>
+    {activeSection === 'menu' ? <View style={styles.menuList}>
+      {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/notifications' as import('expo-router').Href)} style={({ pressed }) => [styles.menuOption, { borderBottomColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}><View style={[styles.menuIcon, { backgroundColor: theme.backgroundSelected }]}><SymbolView name={{ ios: 'bell', android: 'notifications', web: 'notifications' }} size={21} tintColor={theme.tint} /></View><View style={styles.menuCopy}><ThemedText style={styles.menuTitle}>Thông báo {notificationInbox.data?.unreadCount ? `(${notificationInbox.data.unreadCount} chưa đọc)` : ''}</ThemedText><ThemedText themeColor="textSecondary" style={styles.menuSubtitle}>Ưu đãi và tin mới từ PharmaShop</ThemedText></View><SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={15} tintColor={theme.textSecondary} /></Pressable> : null}
+      {user?.role === 'ADMIN' ? <Pressable accessibilityRole="button" onPress={() => router.push('/admin' as import('expo-router').Href)} style={({ pressed }) => [styles.menuOption, { borderBottomColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}><View style={[styles.menuIcon, { backgroundColor: theme.backgroundSelected }]}><SymbolView name={{ ios: 'gearshape.2', android: 'settings', web: 'settings' }} size={21} tintColor={theme.tint} /></View><View style={styles.menuCopy}><ThemedText style={styles.menuTitle}>Quản trị hệ thống</ThemedText><ThemedText themeColor="textSecondary" style={styles.menuSubtitle}>Hộp thư, sản phẩm, đơn hàng và người dùng</ThemedText></View><SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={15} tintColor={theme.textSecondary} /></Pressable> : null}
+      <Pressable accessibilityRole="button" onPress={() => setActiveSection('customer')} style={({ pressed }) => [styles.menuOption, { borderBottomColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}><View style={[styles.menuIcon, { backgroundColor: theme.backgroundSelected }]}><SymbolView name={{ ios: 'person.crop.circle', android: 'person', web: 'person' }} size={21} tintColor={theme.tint} /></View><View style={styles.menuCopy}><ThemedText style={styles.menuTitle}>Thông tin khách hàng</ThemedText><ThemedText themeColor="textSecondary" style={styles.menuSubtitle}>Hồ sơ và tài khoản đăng nhập</ThemedText></View><SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={15} tintColor={theme.textSecondary} /></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => setActiveSection('shipping')} style={({ pressed }) => [styles.menuOption, { borderBottomColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}><View style={[styles.menuIcon, { backgroundColor: theme.backgroundSelected }]}><SymbolView name={{ ios: 'shippingbox', android: 'local_shipping', web: 'local_shipping' }} size={21} tintColor={theme.tint} /></View><View style={styles.menuCopy}><ThemedText style={styles.menuTitle}>Thông tin giao hàng</ThemedText><ThemedText themeColor="textSecondary" style={styles.menuSubtitle}>Địa chỉ nhận hàng đã lưu</ThemedText></View><SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={15} tintColor={theme.textSecondary} /></Pressable>
+      <Pressable accessibilityRole="button" onPress={checkForUpdate} style={({ pressed }) => [styles.menuOption, { borderBottomColor: theme.backgroundElement, opacity: pressed ? 0.7 : 1 }]}><View style={[styles.menuIcon, { backgroundColor: theme.backgroundSelected }]}><SymbolView name={{ ios: 'arrow.triangle.2.circlepath', android: 'system_update', web: 'system_update' }} size={21} tintColor={theme.tint} /></View><View style={styles.menuCopy}><ThemedText style={styles.menuTitle}>Kiểm tra cập nhật</ThemedText><ThemedText themeColor="textSecondary" style={styles.menuSubtitle}>Kiểm tra phiên bản mới qua OTA</ThemedText></View><SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={15} tintColor={theme.textSecondary} /></Pressable>
+    </View> : activeSection === 'customer' ? loading ? <LoadingIndicator size={60} color={theme.tint} /> : user ? <>
       <View style={[styles.profile, { backgroundColor: theme.backgroundElement }]}><ThemedText style={styles.name}>{user.fullName}</ThemedText><ThemedText themeColor="textSecondary" style={styles.meta}>{user.phone}</ThemedText>{user.email ? <ThemedText themeColor="textSecondary" style={styles.meta}>{user.email}</ThemedText> : null}<ThemedText style={[styles.role, { color: theme.tint }]}>{user.role}</ThemedText></View>
+    </> : <View style={[styles.profile, { backgroundColor: theme.backgroundElement }]}><ThemedText style={styles.name}>Đăng nhập PharmaShop</ThemedText><ThemedText themeColor="textSecondary" style={styles.meta}>Đăng nhập để xem thông tin khách hàng.</ThemedText><Link href="/auth/login" style={[styles.primaryLink, { backgroundColor: theme.tint }]}>Đăng nhập</Link><Link href="/auth/register" style={[styles.secondaryLink, { borderColor: theme.tint, color: theme.tint }]}>Tạo tài khoản</Link></View> : loading ? <LoadingIndicator size={60} color={theme.tint} /> : user ? <>
       <View style={styles.sectionHeading}><ThemedText style={styles.section}>Địa chỉ giao hàng</ThemedText><Pressable accessibilityRole="button" onPress={openNew}><ThemedText style={{ color: theme.tint, fontWeight: '700' }}>+ Thêm</ThemedText></Pressable></View>
       {addresses.isLoading ? <LoadingIndicator size={60} color={theme.tint} /> : addresses.error ? <View><ThemedText style={styles.error}>{addresses.error instanceof ApiError ? addresses.error.message : 'Không tải được địa chỉ.'}</ThemedText><Pressable onPress={() => void addresses.refetch()}><ThemedText style={{ color: theme.tint, marginTop: 8 }}>Thử lại</ThemedText></Pressable></View> : addresses.data?.length ? addresses.data.map((address) => <View key={address.id} style={[styles.address, { borderBottomColor: theme.backgroundElement }]}>
         <View style={styles.addressTop}><ThemedText style={styles.name}>{address.receiverName}</ThemedText>{address.isDefault ? <ThemedText style={[styles.defaultTag, { color: theme.tint }]}>Mặc định</ThemedText> : null}</View>
         <ThemedText themeColor="textSecondary" style={styles.meta}>{address.phone}</ThemedText><ThemedText themeColor="textSecondary" style={styles.meta}>{[address.street, address.ward, address.district, address.province].join(', ')}</ThemedText>
         <View style={styles.actions}><Pressable accessibilityRole="button" onPress={() => openEdit(address)}><ThemedText style={{ color: theme.tint, fontWeight: '600' }}>Sửa</ThemedText></Pressable>{!address.isDefault ? <Pressable accessibilityRole="button" onPress={() => save.mutate({ makeDefault: address })}><ThemedText style={{ color: theme.tint, fontWeight: '600' }}>Đặt mặc định</ThemedText></Pressable> : null}<Pressable accessibilityRole="button" onPress={() => confirmDelete(address)}><ThemedText style={{ color: '#B42318', fontWeight: '600' }}>Xóa</ThemedText></Pressable></View>
       </View>) : <ThemedText themeColor="textSecondary" style={styles.meta}>Chưa có địa chỉ giao hàng.</ThemedText>}
-      <Pressable accessibilityRole="button" onPress={() => void signOut().then(() => router.replace('/'))} style={[styles.logout, { borderColor: theme.backgroundSelected }]}><ThemedText style={{ color: '#B42318', fontWeight: '700' }}>Đăng xuất</ThemedText></Pressable>
-    </> : <View style={[styles.profile, { backgroundColor: theme.backgroundElement }]}><ThemedText style={styles.name}>Đăng nhập PharmaShop</ThemedText><ThemedText themeColor="textSecondary" style={styles.meta}>Đồng bộ giỏ hàng và theo dõi đơn hàng của bạn.</ThemedText><Link href="/auth/login" style={[styles.primaryLink, { backgroundColor: theme.tint }]}>Đăng nhập</Link><Link href="/auth/register" style={[styles.secondaryLink, { borderColor: theme.tint, color: theme.tint }]}>Tạo tài khoản</Link></View>}
+    </> : <View style={[styles.profile, { backgroundColor: theme.backgroundElement }]}><ThemedText style={styles.name}>Đăng nhập PharmaShop</ThemedText><ThemedText themeColor="textSecondary" style={styles.meta}>Đăng nhập để quản lý địa chỉ giao hàng.</ThemedText><Link href="/auth/login" style={[styles.primaryLink, { backgroundColor: theme.tint }]}>Đăng nhập</Link></View>}
+    {activeSection === 'menu' && user ? <Pressable accessibilityRole="button" onPress={() => void signOut().then(() => router.replace('/'))} style={[styles.logout, { borderColor: theme.backgroundSelected }]}><ThemedText style={{ color: '#B42318', fontWeight: '700' }}>Đăng xuất</ThemedText></Pressable> : null}
+    <ThemedText themeColor="textSecondary" style={styles.appVersion}>Phiên bản {getAppDisplayVersion()}</ThemedText>
   </ScrollView></SafeAreaView>
     <Modal visible={!!user && modalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeModal}>
       <ThemedView style={styles.modal}><SafeAreaView style={styles.safe} edges={['top', 'bottom']}><ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
@@ -97,7 +115,8 @@ export default function AccountScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 }, safe: { flex: 1 }, content: { padding: 20, paddingBottom: 32 }, title: { fontSize: 28, fontWeight: '800' }, subtitle: { marginTop: 5, marginBottom: 24, fontSize: 14 },
+  page: { flex: 1 }, safe: { flex: 1 }, content: { padding: 20, paddingBottom: 32 }, title: { fontSize: 28, fontWeight: '800' }, subtitle: { marginTop: 5, marginBottom: 24, fontSize: 14 }, appVersion: { marginTop: 28, marginBottom: 8, fontSize: 12, textAlign: 'center' },
+  backButton: { alignSelf: 'flex-start', paddingVertical: 8, marginBottom: 10 }, backText: { fontSize: 15, fontWeight: '700' }, menuList: { marginTop: 4 }, menuOption: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: StyleSheet.hairlineWidth }, menuIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, menuCopy: { flex: 1 }, menuTitle: { fontSize: 15, fontWeight: '700' }, menuSubtitle: { fontSize: 12, marginTop: 3 },
   profile: { padding: 18, borderRadius: 16 }, name: { fontSize: 16, fontWeight: '700' }, meta: { fontSize: 13, marginTop: 6, lineHeight: 19 }, role: { marginTop: 10, fontSize: 12, fontWeight: '700' },
   sectionHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 26, marginBottom: 12 }, section: { fontSize: 17, fontWeight: '700' }, address: { paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth }, addressTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 }, defaultTag: { fontSize: 12, fontWeight: '700' }, actions: { flexDirection: 'row', gap: 22, marginTop: 12 },
   logout: { marginTop: 28, minHeight: 48, borderWidth: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, primaryLink: { color: '#FFFFFF', textAlign: 'center', paddingVertical: 13, borderRadius: 11, overflow: 'hidden', marginTop: 18, fontWeight: '700' }, secondaryLink: { textAlign: 'center', paddingVertical: 12, borderRadius: 11, borderWidth: 1, marginTop: 10, fontWeight: '700' }, error: { color: '#B42318', marginTop: 10 },
