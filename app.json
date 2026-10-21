@@ -16,7 +16,8 @@
         "foregroundImage": "./assets/images/pharmashop-adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.refined.pharmashop"
+      "package": "com.refined.pharmashop",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "server",
@@ -24,6 +25,8 @@
     },
     "plugins": [
       "expo-router",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       [
         "expo-splash-screen",
         {

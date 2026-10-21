@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "311359894775",
+    "project_id": "pharmashop-8fa90",
+    "storage_bucket": "pharmashop-8fa90.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:311359894775:android:e74eedc00e698562984ff2",
+        "android_client_info": {
+          "package_name": "com.refined.pharmashop"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "311359894775-1rs50bfnsabofq1uq5oggu1qi7gld9pv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBu3OSrlJKUm9FCOs9skbriID837BBSmQY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "311359894775-1rs50bfnsabofq1uq5oggu1qi7gld9pv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

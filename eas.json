@@ -7,11 +7,13 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "node": "24.18.0",
       "channel": "development"
     },
     "preview": {
       "autoIncrement": true,
       "distribution": "internal",
+      "node": "24.18.0",
       "android": {
         "buildType": "apk"
       },
@@ -19,6 +21,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "node": "24.18.0",
       "channel": "production"
     }
   },
