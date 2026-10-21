@@ -6,7 +6,8 @@ import { clearCredentials, onSessionExpired, readCredential, saveCredentials } f
 import { addCartItem } from '@/features/cart/api/cart';
 import type { Medicine } from '@/features/catalog/api/medicines';
 
-GoogleSignin.configure({ webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID });
+const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+if (googleWebClientId) GoogleSignin.configure({ webClientId: googleWebClientId });
 
 export type AuthUser = { id: string; fullName: string; phone: string; email: string | null; role: 'CUSTOMER' | 'PHARMACIST' | 'ADMIN'; avatarUrl: string | null };
 export type GuestCartEntry = { medicine: Medicine; quantity: number };
@@ -81,6 +82,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [acceptSession, syncGuestCart]);
 
   const signInWithGoogle = useCallback(async () => {
+    if (!googleWebClientId) {
+      throw new Error('Thiếu EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID trong môi trường build của ứng dụng.');
+    }
     await GoogleSignin.hasPlayServices();
     const result = await GoogleSignin.signIn();
     if (result.type !== 'success') return false;
