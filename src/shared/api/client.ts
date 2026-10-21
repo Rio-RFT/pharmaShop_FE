@@ -40,13 +40,31 @@ export async function apiDelete<TResponse>(path: string): Promise<TResponse> {
 }
 
 async function apiRequest<T>(url: string, init?: RequestInit, allowRefresh = true): Promise<T> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
     const headers = new Headers(init?.headers);
     const accessToken = await readCredential('access');
     if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
-    const response = await fetch(url, { ...init, headers, signal: controller.signal });
+    const method = (init?.method ?? 'GET').toUpperCase();
+    const maxAttempts = method === 'GET' ? 3 : 1;
+    let response: Response;
+
+    for (let attempt = 0; ; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15_000);
+      try {
+        response = await fetch(url, { ...init, headers, signal: controller.signal });
+      } catch (error) {
+        if (attempt + 1 >= maxAttempts || !isRetryableNetworkFailure(error)) throw error;
+        await wait(800 * (attempt + 1));
+        continue;
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (!isRetryableStatus(response.status) || attempt + 1 >= maxAttempts) break;
+      await wait(800 * (attempt + 1));
+    }
+
     if (response.status === 401 && allowRefresh && !url.endsWith('/auth/refresh-token')) {
       const refreshed = await refreshSession();
       if (refreshed) return apiRequest<T>(url, init, false);
@@ -64,9 +82,19 @@ async function apiRequest<T>(url: string, init?: RequestInit, allowRefresh = tru
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === 'AbortError') throw new ApiError('Kết nối quá thời gian chờ. Vui lòng thử lại.');
     throw new ApiError('Không thể kết nối máy chủ. Hãy kiểm tra mạng và địa chỉ API.');
-  } finally {
-    clearTimeout(timeout);
   }
+}
+
+function isRetryableStatus(status: number) {
+  return status === 502 || status === 503 || status === 504;
+}
+
+function isRetryableNetworkFailure(error: unknown) {
+  return error instanceof TypeError || (error instanceof Error && error.name === 'AbortError');
+}
+
+function wait(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function refreshSession(): Promise<boolean> {

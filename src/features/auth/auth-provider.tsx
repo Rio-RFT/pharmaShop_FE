@@ -1,20 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { GoogleAuthProvider, getAuth, getIdToken, signInWithCredential, signOut as signOutFirebase } from '@react-native-firebase/auth';
-import { Platform } from 'react-native';
 import { ApiError, apiPost } from '@/shared/api/client';
 import { clearCredentials, onSessionExpired, readCredential, saveCredentials } from '@/features/auth/token-storage';
 import { addCartItem } from '@/features/cart/api/cart';
 import type { Medicine } from '@/features/catalog/api/medicines';
 
-const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-if (googleWebClientId) GoogleSignin.configure({ webClientId: googleWebClientId });
-
 export type AuthUser = { id: string; fullName: string; phone: string; email: string | null; role: 'CUSTOMER' | 'PHARMACIST' | 'ADMIN'; avatarUrl: string | null };
 export type GuestCartEntry = { medicine: Medicine; quantity: number };
 type AuthResponse = { user: AuthUser; accessToken: string; refreshToken: string };
-type AuthContextValue = { user: AuthUser | null; loading: boolean; guestItems: GuestCartEntry[]; guestCartSyncError: string | null; addGuestItem: (medicine: Medicine) => void; setGuestQuantity: (medicineId: string, quantity: number) => void; removeGuestItem: (medicineId: string) => void; retryGuestCartSync: () => Promise<void>; signIn: (identifier: string, password: string) => Promise<void>; signInWithGoogle: () => Promise<boolean>; signInWithGoogleCode: (code: string) => Promise<void>; signUp: (input: { fullName: string; phone: string; email?: string; password: string }) => Promise<void>; signOut: () => Promise<void> };
+type AuthContextValue = { user: AuthUser | null; loading: boolean; guestItems: GuestCartEntry[]; guestCartSyncError: string | null; addGuestItem: (medicine: Medicine) => void; setGuestQuantity: (medicineId: string, quantity: number) => void; removeGuestItem: (medicineId: string) => void; retryGuestCartSync: () => Promise<void>; signIn: (identifier: string, password: string) => Promise<void>; signUp: (input: { fullName: string; phone: string; email?: string; password: string }) => Promise<void>; signOut: () => Promise<void> };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -83,61 +77,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await syncGuestCart();
   }, [acceptSession, syncGuestCart]);
 
-  const signInWithGoogle = useCallback(async () => {
-    if (Platform.OS !== 'android') {
-      throw new Error('Đăng nhập Firebase bằng Google hiện chỉ được bật trên Android.');
-    }
-    if (!googleWebClientId) {
-      throw new Error('Thiếu EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID trong môi trường build của ứng dụng.');
-    }
-    try {
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const result = await GoogleSignin.signIn();
-      if (result.type === 'cancelled') return false;
-
-      const googleIdToken = result.data.idToken;
-      if (!googleIdToken) {
-        throw new Error('Google chưa trả về thông tin đăng nhập. Hãy kiểm tra Web OAuth client ID.');
-      }
-
-      const googleCredential = GoogleAuthProvider.credential(googleIdToken);
-      const firebaseUser = (await signInWithCredential(getAuth(), googleCredential)).user;
-      const firebaseIdToken = await getIdToken(firebaseUser);
-      const session = await apiPost<AuthResponse, { idToken: string }>('/auth/firebase', { idToken: firebaseIdToken });
-
-      await acceptSession(session);
-      await syncGuestCart();
-      return true;
-    } catch (error) {
-      await clearGoogleFirebaseSession();
-
-      if (error instanceof ApiError && error.statusCode === 409) {
-        throw new ApiError('Email Google này đã thuộc tài khoản PharmaShop khác. Hãy đăng nhập bằng phương thức hiện tại; ứng dụng không tự liên kết tài khoản.', 409);
-      }
-
-      const code = getErrorCode(error);
-      if (code === 'SIGN_IN_CANCELLED' || code === '12501') return false;
-      if (code === 'PLAY_SERVICES_NOT_AVAILABLE' || code === 'SERVICE_MISSING' || code === 'SERVICE_VERSION_UPDATE_REQUIRED') {
-        throw new Error('Thiết bị cần cài đặt hoặc cập nhật Google Play services để đăng nhập.');
-      }
-      if (code === 'auth/operation-not-allowed') {
-        throw new Error('Đăng nhập Google chưa được bật trong Firebase Authentication.');
-      }
-      if (code === 'auth/network-request-failed') {
-        throw new Error('Không thể kết nối Firebase. Hãy kiểm tra kết nối mạng rồi thử lại.');
-      }
-      if (code === '10' || code === 'DEVELOPER_ERROR') {
-        throw new Error('Cấu hình Google Sign-In chưa khớp package hoặc SHA-1 của bản ứng dụng này.');
-      }
-      throw error;
-    }
-  }, [acceptSession, syncGuestCart]);
-
-  const signInWithGoogleCode = useCallback(async (code: string) => {
-    await acceptSession(await apiPost<AuthResponse, { code: string }>('/auth/google/exchange', { code }));
-    await syncGuestCart();
-  }, [acceptSession, syncGuestCart]);
-
   const signUp = useCallback(async (input: { fullName: string; phone: string; email?: string; password: string }) => {
     await acceptSession(await apiPost<AuthResponse, typeof input & { role: 'CUSTOMER' }>('/auth/register', { ...input, role: 'CUSTOMER' }));
     await syncGuestCart();
@@ -146,16 +85,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const signOut = useCallback(async () => {
     await clearCredentials();
     setUser(null);
-    if (Platform.OS === 'android') {
-      await clearGoogleFirebaseSession();
-    }
     queryClient.removeQueries({ queryKey: ['cart'] });
     queryClient.removeQueries({ queryKey: ['orders'] });
     queryClient.removeQueries({ queryKey: ['profile'] });
     queryClient.removeQueries({ queryKey: ['addresses'] });
   }, [queryClient]);
 
-  const value = useMemo(() => ({ user, loading, guestItems, guestCartSyncError, addGuestItem, setGuestQuantity, removeGuestItem, retryGuestCartSync: syncGuestCart, signIn, signInWithGoogle, signInWithGoogleCode, signUp, signOut }), [user, loading, guestItems, guestCartSyncError, addGuestItem, setGuestQuantity, removeGuestItem, syncGuestCart, signIn, signInWithGoogle, signInWithGoogleCode, signUp, signOut]);
+  const value = useMemo(() => ({ user, loading, guestItems, guestCartSyncError, addGuestItem, setGuestQuantity, removeGuestItem, retryGuestCartSync: syncGuestCart, signIn, signUp, signOut }), [user, loading, guestItems, guestCartSyncError, addGuestItem, setGuestQuantity, removeGuestItem, syncGuestCart, signIn, signUp, signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
@@ -169,17 +105,4 @@ function isAuthUser(value: unknown): value is AuthUser {
   if (typeof value !== 'object' || value === null) return false;
   const candidate = value as Record<string, unknown>;
   return typeof candidate.id === 'string' && typeof candidate.fullName === 'string' && typeof candidate.phone === 'string' && (candidate.role === 'CUSTOMER' || candidate.role === 'PHARMACIST' || candidate.role === 'ADMIN');
-}
-
-function getErrorCode(error: unknown): string | undefined {
-  if (typeof error !== 'object' || error === null || !('code' in error)) return undefined;
-  const code = error.code;
-  return typeof code === 'string' || typeof code === 'number' ? String(code) : undefined;
-}
-
-async function clearGoogleFirebaseSession() {
-  await Promise.allSettled([
-    Promise.resolve().then(() => signOutFirebase(getAuth())),
-    Promise.resolve().then(() => GoogleSignin.signOut()),
-  ]);
 }

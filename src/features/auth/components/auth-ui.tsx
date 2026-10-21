@@ -3,7 +3,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AppHeader } from '@/components/app-header';
 import { useTheme } from '@/hooks/use-theme';
-import { Image } from 'expo-image';
 import type { PropsWithChildren, ReactNode } from 'react';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
@@ -61,18 +60,6 @@ export function AuthPrimaryButton({ title, busy, disabled, onPress }: { title: s
   </Pressable>;
 }
 
-export function AuthGoogleButton({ busy, disabled, onPress }: { busy: boolean; disabled?: boolean; onPress: () => void }) {
-  const theme = useTheme();
-  return <Pressable accessibilityRole="button" accessibilityLabel="Đăng nhập bằng Google" accessibilityState={{ disabled: Boolean(disabled || busy) }} disabled={disabled || busy} onPress={onPress} style={({ pressed }) => [styles.googleButton, { borderColor: theme.backgroundSelected, backgroundColor: theme.background, opacity: disabled || busy ? 0.55 : pressed ? 0.75 : 1 }]}>
-    {busy ? <ThemedText style={styles.googleText}>Đang kết nối Google…</ThemedText> : <><Image source={require('../../../../public/google.svg')} style={styles.googleIcon} contentFit="contain" accessibilityLabel="Google" /><ThemedText style={styles.googleText}>Tiếp tục với Google</ThemedText></>}
-  </Pressable>;
-}
-
-export function AuthDivider() {
-  const theme = useTheme();
-  return <View style={styles.divider}><View style={[styles.dividerLine, { backgroundColor: theme.backgroundSelected }]} /><ThemedText themeColor="textSecondary" style={styles.dividerText}>hoặc</ThemedText><View style={[styles.dividerLine, { backgroundColor: theme.backgroundSelected }]} /></View>;
-}
-
 export function AuthError({ children }: PropsWithChildren) {
   return <View style={styles.errorBox}><ThemedText accessibilityRole="alert" style={styles.formError}>{children}</ThemedText></View>;
 }
@@ -83,6 +70,5 @@ const styles = StyleSheet.create({
   heading: { marginBottom: 26 }, eyebrow: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 99, marginBottom: 15 }, eyebrowText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.8 }, title: { fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.8 }, subtitle: { marginTop: 8, fontSize: 14, lineHeight: 21 },
   fieldWrap: { marginBottom: 16 }, label: { fontSize: 13, fontWeight: '700', marginBottom: 8 }, inputShell: { minHeight: 54, borderWidth: 1.5, borderRadius: 14, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15 }, input: { flex: 1, minHeight: 52, paddingVertical: 0, fontSize: 15 }, passwordToggle: { minHeight: 44, justifyContent: 'center', paddingLeft: 10 }, fieldError: { color: '#B42318', marginTop: 6, fontSize: 12 },
   primary: { minHeight: 54, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: 6 }, primaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' }, buttonLoading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 22 }, dividerLine: { flex: 1, height: StyleSheet.hairlineWidth }, dividerText: { fontSize: 12 }, googleButton: { minHeight: 54, borderWidth: 1, borderRadius: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }, googleIcon: { width: 19, height: 19 }, googleText: { fontSize: 14, fontWeight: '700' },
   errorBox: { borderRadius: 12, backgroundColor: '#FEF3F2', paddingHorizontal: 13, paddingVertical: 11, marginBottom: 14 }, formError: { color: '#B42318', fontSize: 13, lineHeight: 19 }, footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 28 },
 });
