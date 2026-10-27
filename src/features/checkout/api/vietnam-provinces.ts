@@ -1,3 +1,5 @@
+import { fetchUntilResponse, logApiResponse } from '@/shared/api/client';
+
 const API_BASE_URL = 'https://provinces.open-api.vn/api/v1';
 
 export type DivisionOption = { code: number; name: string };
@@ -18,18 +20,11 @@ export async function getProvinceDetail(code: number): Promise<Province> {
 }
 
 async function requestJson<T>(url: string): Promise<T> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12_000);
-  try {
-    const response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
-    if (!response.ok) throw new Error(`Không tải được dữ liệu địa giới (${response.status}).`);
-    return await response.json() as T;
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') throw new Error('Tải danh sách địa giới quá thời gian chờ.');
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
+  const result = await fetchUntilResponse(url, { headers: { Accept: 'application/json' } }, 'GET');
+  const data: unknown = await result.response.json().catch(() => undefined);
+  logApiResponse(url, 'GET', result, result.response.status, data);
+  if (!result.response.ok) throw new Error(`Không tải được dữ liệu địa giới (${result.response.status}).`);
+  return data as T;
 }
 
 function isDivisionOption(value: unknown): value is DivisionOption {

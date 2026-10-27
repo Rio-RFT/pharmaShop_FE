@@ -5,7 +5,7 @@ export type Medicine = {
   name: string;
   activeIngredient: string;
   category: string;
-  price: number | string;
+  price: number | string | null;
   stockQuantity: number;
   unit: string;
   packaging: string;
@@ -21,6 +21,7 @@ export type MedicineSearchResult = {
   data: Medicine[];
   pagination: { total: number; page: number; limit: number; totalPages: number };
 };
+export type MedicineCategory = { id: string; name: string; imageUrl: string | null; parentId: string | null; isActive: boolean };
 
 export function searchMedicines(params: {
   keyword?: string;
@@ -34,7 +35,7 @@ export function searchMedicines(params: {
 }
 
 export function getMedicineCategories() {
-  return apiGet<string[]>('/medicines/categories');
+  return apiGet<MedicineCategory[]>('/medicines/categories');
 }
 
 export function getMedicine(id: string) {

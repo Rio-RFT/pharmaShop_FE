@@ -1,8 +1,8 @@
 import { LoadingIndicator } from '@/shared/components/loading-indicator';
 import { Link, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { ThemedText } from '@/components/themed-text';
@@ -12,6 +12,7 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { getOrderById } from '@/features/orders/api/orders';
 import { clearPendingPayOSOrder, readPendingPayOSOrder } from '@/features/payments/pending-order';
 import { ApiError } from '@/shared/api/client';
+import { usePullToRefresh } from '@/shared/hooks/use-pull-to-refresh';
 
 type Props = { outcome: 'return' | 'cancel' };
 
@@ -22,10 +23,16 @@ export function PaymentResultScreen({ outcome }: Props) {
   const { user } = useAuth();
   const params = useLocalSearchParams<{ orderCode?: string | string[] }>();
   const orderCode = Array.isArray(params.orderCode) ? params.orderCode[0] : params.orderCode;
+  const pollingDeadline = useRef(Date.now() + 120_000);
   const result = useQuery({
     queryKey: ['payments', 'payos-return', user?.id, orderCode],
     enabled: !!user,
     retry: false,
+    refetchInterval: (query) => {
+      if (query.state.status === 'success' && query.state.data === null) return false;
+      if (query.state.data?.paymentStatus === 'PAID' || Date.now() >= pollingDeadline.current) return false;
+      return 15_000;
+    },
     queryFn: async () => {
       const pendingOrderId = await readPendingPayOSOrder();
       if (!pendingOrderId) return null;
@@ -45,13 +52,14 @@ export function PaymentResultScreen({ outcome }: Props) {
   }, [queryClient, result.data]);
 
   const order = result.data;
+  const pullRefresh = usePullToRefresh();
   const paid = order?.paymentStatus === 'PAID';
   const heading = outcome === 'return' ? (paid ? 'Thanh toán thành công' : 'Đã quay lại từ PayOS') : 'Bạn đã quay lại từ PayOS';
   const description = order
-    ? paid ? 'Backend đã xác nhận thanh toán cho đơn hàng.' : 'Trạng thái đơn hàng được lấy từ máy chủ. Nếu bạn vừa thanh toán, trạng thái có thể cần một chút thời gian để cập nhật.'
+    ? paid ? 'Đã xác nhận thanh toán cho đơn hàng.' : 'Trạng thái đơn hàng được lấy từ máy chủ. Nếu bạn vừa thanh toán, trạng thái có thể cần một chút thời gian để cập nhật.'
     : 'Không có đơn PayOS đang chờ trên thiết bị này. Bạn có thể xem danh sách đơn hàng trong tài khoản.';
 
-  return <ThemedView style={styles.page}><SafeAreaView style={styles.safe} edges={['top', 'bottom']}><AppHeader /><ScrollView contentContainerStyle={styles.content}>
+  return <ThemedView style={styles.page}><SafeAreaView style={styles.safe} edges={['top', 'bottom']}><AppHeader /><ScrollView alwaysBounceVertical refreshControl={<RefreshControl refreshing={pullRefresh.refreshing} onRefresh={() => void pullRefresh.onRefresh()} tintColor={theme.tint} colors={[theme.tint]} />} contentContainerStyle={styles.content}>
     {!user ? <View style={styles.body}><ThemedText style={styles.title}>Đăng nhập để xem đơn hàng</ThemedText><ThemedText themeColor="textSecondary" style={styles.description}>PayOS đã quay lại ứng dụng. Đăng nhập để tải trạng thái thanh toán từ máy chủ.</ThemedText><Link href="/auth/login" style={[styles.primaryText, { backgroundColor: theme.tint }]}>Đăng nhập</Link></View>
       : result.isLoading ? <View style={styles.loading}><LoadingIndicator size={60} color={theme.tint} /><ThemedText themeColor="textSecondary">Đang đồng bộ trạng thái đơn hàng…</ThemedText></View>
         : <View style={styles.body}>

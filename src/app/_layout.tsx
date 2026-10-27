@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter } from 'expo-r
 import * as SplashScreen from 'expo-splash-screen';
 import { Image } from 'expo-image';
 import Constants from 'expo-constants';
-import { ActivityIndicator, AppState, Modal, Platform, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Linking, Modal, Platform, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Updates from 'expo-updates';
 
@@ -17,9 +17,12 @@ import { useTheme } from '@/hooks/use-theme';
 import { getAppDisplayVersion } from '@/shared/lib/app-version';
 import { UpdateCheckContext } from '@/shared/hooks/use-update-check';
 import { SupportChatOverlay } from '@/features/support-chat/components/support-chat-overlay';
-import { registerPushDevice } from '@/features/notifications/lib/push-registration';
+import { PushRegistrationError, registerPushDevice, subscribeToPushTokenRefresh } from '@/features/notifications/lib/push-registration';
+import { ApiError } from '@/shared/api/client';
+import { usePaymentStatusSync } from '@/features/orders/hooks/use-payment-status-sync';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } });
+type NotificationTap = { key: string; data: Record<string, unknown> };
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,6 +43,8 @@ export default function RootLayout() {
 
 function AppBootstrap() {
   const { loading: authLoading, user } = useAuth();
+  usePaymentStatusSync(undefined, user?.id);
+  const authenticatedUserId = user?.id;
   const router = useRouter();
   const theme = useTheme();
   const { downloadProgress } = Updates.useUpdates();
@@ -51,59 +56,144 @@ function AppBootstrap() {
   const [availableUpdate, setAvailableUpdate] = useState<{ version: string; revision: string } | null>(null);
   const [updateStage, setUpdateStage] = useState<'checking' | 'up-to-date' | 'available' | 'downloading' | 'restarting' | 'error'>('available');
   const [updateError, setUpdateError] = useState<string | null>(null);
-  const [lastNotificationResponse, setLastNotificationResponse] = useState<import('expo-notifications').NotificationResponse | null>(null);
+  const [lastNotificationResponse, setLastNotificationResponse] = useState<NotificationTap | null>(null);
   const handledNotificationResponse = useRef<string | null>(null);
+  const notifiedPushPermissionUsers = useRef(new Set<string>());
 
   useEffect(() => {
     let active = true;
-    let receivedSubscription: import('expo-notifications').EventSubscription | undefined;
     let responseSubscription: import('expo-notifications').EventSubscription | undefined;
+    let unsubscribeFcmMessage: (() => void) | undefined;
+    let unsubscribeFcmOpened: (() => void) | undefined;
 
-    void import('expo-notifications').then((Notifications) => {
-      if (!active) return;
-      Notifications.setNotificationHandler({
-        handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }),
+    if (Platform.OS !== 'web') {
+      void import('expo-notifications').then((Notifications) => {
+        if (!active) return;
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }),
+        });
+        responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+          setLastNotificationResponse({
+            key: response.notification.request.identifier,
+            data: response.notification.request.content.data ?? {},
+          });
+        });
+        void Notifications.getLastNotificationResponseAsync().then((response) => {
+          if (active && response) setLastNotificationResponse({
+            key: response.notification.request.identifier,
+            data: response.notification.request.content.data ?? {},
+          });
+        });
+      }).catch(() => {
+        // Older development builds and Expo Go may not include the native notifications module.
       });
-      receivedSubscription = Notifications.addNotificationReceivedListener(() => {
-        void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    }
+
+    if (Platform.OS !== 'web') {
+      void import('@react-native-firebase/messaging').then(async (Messaging) => {
+        if (!active) return;
+        const messaging = Messaging.getMessaging();
+        unsubscribeFcmMessage = Messaging.onMessage(messaging, async (message) => {
+          void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+          if (!message.notification) return;
+          try {
+            const Notifications = await import('expo-notifications');
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: message.notification.title ?? 'PharmaShop',
+                body: message.notification.body ?? 'Bạn có thông báo mới.',
+                data: message.data,
+              },
+              trigger: null,
+            });
+          } catch {
+            // The FCM data remains available in the app inbox if local foreground display is unavailable.
+          }
+        });
+        unsubscribeFcmOpened = Messaging.onNotificationOpenedApp(messaging, (message) => {
+          setLastNotificationResponse({ key: message.messageId ?? '', data: message.data ?? {} });
+        });
+        const initialMessage = await Messaging.getInitialNotification(messaging);
+        if (active && initialMessage) {
+          setLastNotificationResponse({ key: initialMessage.messageId ?? '', data: initialMessage.data ?? {} });
+        }
+      }).catch(() => {
+        // Native FCM handlers are only present in development/production builds with Messaging included.
       });
-      responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-        setLastNotificationResponse(response);
-      });
-      void Notifications.getLastNotificationResponseAsync().then((response) => {
-        if (active) setLastNotificationResponse(response);
-      });
-    }).catch(() => {
-      // Older development builds and Expo Go may not include the native notifications module.
-    });
+    }
 
     return () => {
       active = false;
-      receivedSubscription?.remove();
       responseSubscription?.remove();
+      unsubscribeFcmMessage?.();
+      unsubscribeFcmOpened?.();
     };
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    void registerPushDevice().catch(() => undefined);
-  }, [user?.id]);
+    if (!authenticatedUserId) return;
+    let active = true;
+    let unsubscribeTokenRefresh: (() => void) | undefined;
+    void subscribeToPushTokenRefresh(authenticatedUserId, (error) => {
+      if (!__DEV__) return;
+      const code = error instanceof PushRegistrationError
+        ? error.code
+        : error instanceof ApiError
+          ? error.statusCode === 401 || error.statusCode === 403 ? `API_${error.statusCode}` : error.statusCode ? 'API_ERROR' : 'API_NETWORK'
+          : 'TOKEN_REFRESH_FAILED';
+      console.warn('[Push] token refresh registration failed', { code });
+    }).then((unsubscribe) => {
+      if (active) unsubscribeTokenRefresh = unsubscribe;
+      else unsubscribe();
+    });
+    const register = async (requestPermission: boolean) => {
+      try {
+        const result = await registerPushDevice(authenticatedUserId, { requestPermission });
+        if (active && result === 'permission-denied' && !notifiedPushPermissionUsers.current.has(authenticatedUserId)) {
+          notifiedPushPermissionUsers.current.add(authenticatedUserId);
+          Alert.alert(
+            'Bật thông báo PharmaShop',
+            'Cho phép thông báo để nhận cập nhật đơn hàng và tin tức. Bạn có thể bật quyền này trong Cài đặt thiết bị.',
+            [
+              { text: 'Để sau', style: 'cancel' },
+              { text: 'Mở cài đặt', onPress: () => { void Linking.openSettings().catch(() => undefined); } },
+            ],
+          );
+        }
+        if (__DEV__ && result === 'registered') console.info('[Push] device registered');
+      } catch (error) {
+        if (__DEV__) {
+          const code = error instanceof PushRegistrationError
+            ? error.code
+            : error instanceof ApiError
+              ? error.statusCode === 401 || error.statusCode === 403 ? `API_${error.statusCode}` : error.statusCode ? 'API_ERROR' : 'API_NETWORK'
+              : 'REGISTRATION_FAILED';
+          console.warn('[Push] registration failed', { code });
+        }
+      }
+    };
+    void register(true);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (active && state === 'active') void register(false);
+    });
+    return () => { active = false; subscription.remove(); unsubscribeTokenRefresh?.(); };
+  }, [authenticatedUserId]);
 
   useEffect(() => {
     if (!lastNotificationResponse) { handledNotificationResponse.current = null; return; }
     if (authLoading) return;
-    const notification = lastNotificationResponse.notification;
-    const responseKey = `${notification.request.identifier}:${notification.date}`;
-    if (handledNotificationResponse.current === responseKey) return;
-    const data = notification.request.content.data;
+    const data = lastNotificationResponse.data;
     if (!data) return;
     const notificationId = typeof data['notificationId'] === 'string' ? data['notificationId'] : null;
     const screen = data['screen'];
     if (!notificationId || !isUuid(notificationId) || screen !== 'notification-detail') return;
-    handledNotificationResponse.current = responseKey;
+    if (handledNotificationResponse.current === notificationId) return;
+    handledNotificationResponse.current = notificationId;
     if (user) router.push(`/notifications/${notificationId}` as import('expo-router').Href);
     else router.push({ pathname: '/auth/login', params: { notificationId } });
-    void import('expo-notifications').then((Notifications) => Notifications.clearLastNotificationResponseAsync()).catch(() => undefined);
+    if (Platform.OS !== 'web') {
+      void import('expo-notifications').then((Notifications) => Notifications.clearLastNotificationResponseAsync()).catch(() => undefined);
+    }
   }, [authLoading, lastNotificationResponse, router, user]);
 
   useEffect(() => {
@@ -241,6 +331,8 @@ function AppBootstrap() {
         <Stack.Screen name="medicine/[id]" />
         <Stack.Screen name="checkout" />
         <Stack.Screen name="order/[id]" />
+        <Stack.Screen name="payment/payos/[orderId]" />
+        <Stack.Screen name="payment/success" />
         <Stack.Screen name="payment/return" />
         <Stack.Screen name="payment/cancel" />
         <Stack.Screen name="auth/login" options={{ presentation: 'modal' }} />

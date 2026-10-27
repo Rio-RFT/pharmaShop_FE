@@ -9,12 +9,14 @@ import { Image } from 'expo-image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { usePullToRefresh } from '@/shared/hooks/use-pull-to-refresh';
 
 export default function NotificationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>(); const router = useRouter(); const theme = useTheme(); const queryClient = useQueryClient();
   const detail = useQuery({ queryKey: ['notifications', 'detail', id], queryFn: () => getNotificationDetail(id), enabled: !!id });
+  const pullRefresh = usePullToRefresh();
   useEffect(() => { if (detail.data) void queryClient.invalidateQueries({ queryKey: ['notifications'] }); }, [detail.data?.readAt, queryClient]);
   const openAction = async (url: string) => {
     try {
@@ -42,7 +44,7 @@ export default function NotificationDetailScreen() {
 
   return <ThemedView style={styles.page}><SafeAreaView style={styles.safe} edges={['top']}><AppHeader />
     <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}><ThemedText style={{ color: theme.tint, fontWeight: '700' }}>‹ Thông báo</ThemedText></Pressable>
-    {detail.isLoading ? <View style={styles.center}><LoadingIndicator size={52} color={theme.tint} /></View> : detail.error ? <View style={styles.center}><ThemedText accessibilityRole="alert" style={styles.error}>{detail.error instanceof ApiError ? detail.error.message : 'Không tải được thông báo.'}</ThemedText><Pressable onPress={() => void detail.refetch()}><ThemedText style={{ color: theme.tint }}>Thử lại</ThemedText></Pressable></View> : detail.data ? <ScrollView contentContainerStyle={styles.content}>
+    {detail.isLoading ? <View style={styles.center}><LoadingIndicator size={52} color={theme.tint} /></View> : detail.error ? <View style={styles.center}><ThemedText accessibilityRole="alert" style={styles.error}>{detail.error instanceof ApiError ? detail.error.message : 'Không tải được thông báo.'}</ThemedText><Pressable onPress={() => void detail.refetch()}><ThemedText style={{ color: theme.tint }}>Thử lại</ThemedText></Pressable></View> : detail.data ? <ScrollView alwaysBounceVertical refreshControl={<RefreshControl refreshing={pullRefresh.refreshing} onRefresh={() => void pullRefresh.onRefresh()} tintColor={theme.tint} colors={[theme.tint]} />} contentContainerStyle={styles.content}>
       <ThemedText style={styles.title}>{detail.data.title}</ThemedText><ThemedText themeColor="textSecondary" style={styles.date}>{new Date(detail.data.createdAt).toLocaleString('vi-VN')} · {detail.data.type === 'PAGE' ? 'Trang sự kiện' : 'Thông báo'}</ThemedText><ThemedText style={styles.body}>{detail.data.body}</ThemedText>
       {detail.data.type === 'PAGE' ? <View style={styles.blocks}>{(detail.data.content ?? []).map(renderBlock)}</View> : null}
     </ScrollView> : null}

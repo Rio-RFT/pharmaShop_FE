@@ -14,7 +14,7 @@ export type AdminChatMessage = {
 export type Page<T> = { data: T[]; pagination: { total: number; page: number; limit: number; totalPages: number } };
 export type AdminUser = { id: string; fullName: string; phone: string; email: string | null; role: 'CUSTOMER' | 'PHARMACIST' | 'ADMIN'; isActive: boolean; createdAt: string; _count?: { orders: number } };
 export type AdminCoupon = { id: string; code: string; discountType: 'PERCENTAGE' | 'FIXED_AMOUNT'; discountValue: number | string; minOrderAmount: number | string; maxDiscount: number | string | null; startsAt: string; expiresAt: string; usageLimit: number | null; usedCount: number; isActive: boolean };
-export type AdminMedicine = { id: string; name: string; activeIngredient: string; category: string; price: number | string; stockQuantity: number; unit?: string; packaging: string; imageUrl?: string | null };
+export type AdminMedicine = { id: string; name: string; activeIngredient: string; category: string; price: number | string | null; stockQuantity: number; unit?: string; packaging: string; imageUrl?: string | null };
 export type AdminOrder = { id: string; status: string; paymentStatus: string; totalAmount: number | string; createdAt: string; user?: { fullName: string; phone: string }; items?: Array<{ medicine: { name: string }; quantity: number }> };
 
 export const listChat = (status?: ChatStatus) => apiGet<{ items: AdminConversation[]; nextCursor: string | null }>('/chat/conversations', { status, limit: 50 });
@@ -35,5 +35,16 @@ export const listMedicines = (page = 1, keyword?: string) => apiGet<{ data: Admi
 export const createMedicine = (input: Record<string, unknown>) => apiPost<AdminMedicine, typeof input>('/medicines', input);
 export const updateMedicine = (id: string, input: Record<string, unknown>) => apiPatch<AdminMedicine, typeof input>(`/medicines/${id}`, input);
 export const deleteMedicine = (id: string) => apiDelete<{ message: string }>(`/medicines/${id}`);
+export type AdminMedicineCategory = { id: string; name: string; imageUrl?: string | null; parentId: string | null; isActive: boolean };
+export type MedicineCategoryImportItem = { name: string; imageUrl?: string | null; parentId?: string | null };
+export type MedicineCategoryImportResult = { total: number; created: number; updated: number; failed: number; results: Array<{ index: number; status: 'created' | 'updated' | 'failed'; category?: AdminMedicineCategory; error?: string }> };
+export type MedicineImportItem = { name: string; category: string; categoryId?: string; price: number | null; stockQuantity: number; unit: string; imageUrl?: string; activeIngredient?: string; packaging?: string; barcode?: string };
+export type MedicineImportResult = { idempotencyKey: string; total: number; created: number; duplicate: number; failed: number; replayed?: boolean; results: Array<{ index: number; status: 'created' | 'duplicate' | 'failed'; medicineId?: string; error?: string }> };
+export const listMedicineCategories = () => apiGet<AdminMedicineCategory[]>('/medicines/admin/categories');
+export const importMedicineCategories = (items: MedicineCategoryImportItem[]) => apiPost<MedicineCategoryImportResult, { items: MedicineCategoryImportItem[] }>('/medicines/admin/categories/import', { items });
+export const importMedicines = (input: { idempotencyKey: string; items: MedicineImportItem[] }) => apiPost<MedicineImportResult, typeof input>('/medicines/admin/import', input);
+export const createMedicineCategory = (input: MedicineCategoryImportItem) => apiPost<AdminMedicineCategory, typeof input>('/medicines/admin/categories', input);
+export const updateMedicineCategory = (id: string, input: { name?: string; isActive?: boolean; imageUrl?: string | null; parentId?: string | null }) => apiPatch<AdminMedicineCategory, typeof input>(`/medicines/admin/categories/${id}`, input);
+export const deactivateMedicineCategory = (id: string) => apiDelete<{ message: string }>(`/medicines/admin/categories/${id}`);
 export const listOrders = (page = 1) => apiGet<{ data: AdminOrder[]; pagination: Page<AdminOrder>['pagination'] }>('/orders/admin/all', { page, limit: 20 });
 export const updateOrder = (id: string, input: { status: string; paymentStatus?: string }) => apiPatch<AdminOrder, typeof input>(`/orders/${id}/status`, input);

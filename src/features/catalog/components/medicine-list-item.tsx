@@ -41,7 +41,7 @@ export function MedicineListItem({ medicine, onPress }: { medicine: Medicine; on
           {medicine.activeIngredient || medicine.packaging || medicine.category}
         </ThemedText>
         <View style={styles.meta}>
-          <ThemedText style={[styles.price, { color: theme.tint }]}>{money.format(Number(medicine.price))}</ThemedText>
+          <ThemedText style={[styles.price, { color: theme.tint }]}>{medicine.price == null ? 'Cần dược sĩ tư vấn' : money.format(Number(medicine.price))}</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.stock}>
             {medicine.stockQuantity > 0 ? 'Còn hàng' : 'Tạm hết'}
           </ThemedText>

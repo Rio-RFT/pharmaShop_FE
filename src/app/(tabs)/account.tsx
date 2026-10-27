@@ -3,7 +3,7 @@ import { Link, useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { ThemedText } from '@/components/themed-text';
@@ -17,6 +17,7 @@ import { ApiError } from '@/shared/api/client';
 import { getAppDisplayVersion } from '@/shared/lib/app-version';
 import { useUpdateCheck } from '@/shared/hooks/use-update-check';
 import { getNotifications } from '@/features/notifications/api/notifications';
+import { usePullToRefresh } from '@/shared/hooks/use-pull-to-refresh';
 
 type Form = AddressInput;
 const emptyForm: Form = { receiverName: '', phone: '', street: '', ward: '', district: '', province: '', isDefault: false };
@@ -42,6 +43,7 @@ export default function AccountScreen() {
   const provinceDetail = useQuery({ queryKey: ['vietnam-provinces', 'detail', province?.code], queryFn: () => getProvinceDetail(province!.code), enabled: province !== null, staleTime: 86_400_000 });
   const setField = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }));
   const refresh = async () => { await queryClient.invalidateQueries({ queryKey: ['addresses', user?.id] }); };
+  const pullRefresh = usePullToRefresh(refresh);
   const save = useMutation({
     mutationFn: (input: { address?: AddressInput; makeDefault?: Address }) => input.makeDefault ? updateAddress(input.makeDefault.id, { isDefault: true }) : editing ? updateAddress(editing.id, input.address ?? form) : createAddress(input.address ?? form),
     onSuccess: async (_saved, input) => { if (!input.makeDefault) closeModal(); await refresh(); },
@@ -78,7 +80,7 @@ export default function AccountScreen() {
   ]);
 
   const pageTitle = activeSection === 'menu' ? 'Tài khoản' : activeSection === 'customer' ? 'Thông tin khách hàng' : 'Thông tin giao hàng';
-  return <ThemedView style={styles.page}><SafeAreaView style={styles.safe} edges={['top']}><AppHeader /><ScrollView contentContainerStyle={styles.content}>
+  return <ThemedView style={styles.page}><SafeAreaView style={styles.safe} edges={['top']}><AppHeader /><ScrollView alwaysBounceVertical refreshControl={<RefreshControl refreshing={pullRefresh.refreshing} onRefresh={() => void pullRefresh.onRefresh()} tintColor={theme.tint} colors={[theme.tint]} />} contentContainerStyle={styles.content}>
     {activeSection !== 'menu' ? <Pressable accessibilityRole="button" accessibilityLabel="Quay lại tài khoản" onPress={() => setActiveSection('menu')} style={styles.backButton}><ThemedText style={[styles.backText, { color: theme.tint }]}>‹  Tài khoản</ThemedText></Pressable> : null}
     <ThemedText style={styles.title}>{pageTitle}</ThemedText>
     <ThemedText themeColor="textSecondary" style={styles.subtitle}>{activeSection === 'menu' ? 'Quản lý thông tin và cài đặt ứng dụng' : activeSection === 'customer' ? 'Thông tin hồ sơ của bạn' : 'Quản lý địa chỉ nhận hàng đã lưu'}</ThemedText>

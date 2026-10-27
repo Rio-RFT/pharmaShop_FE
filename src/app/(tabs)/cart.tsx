@@ -1,18 +1,20 @@
-import { LoadingIndicator } from '@/shared/components/loading-indicator';
-import { Link, useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { Image } from 'expo-image';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { getCart, removeCartItem, setCartItemQuantity, type Cart, type CartItem } from '@/features/cart/api/cart';
+import { validateCoupon, type CouponPreview } from '@/features/orders/api/coupons';
+import { useTheme } from '@/hooks/use-theme';
 import { ApiError } from '@/shared/api/client';
+import { LoadingIndicator } from '@/shared/components/loading-indicator';
+import { usePullToRefresh } from '@/shared/hooks/use-pull-to-refresh';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Image } from 'expo-image';
+import { Link, useRouter } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
+import { useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 
@@ -24,6 +26,9 @@ export default function CartScreen() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [couponInput, setCouponInput] = useState('');
   const [couponCode, setCouponCode] = useState('');
+  const [couponPreview, setCouponPreview] = useState<CouponPreview | null>(null);
+  const [couponPreviewCartKey, setCouponPreviewCartKey] = useState('');
+  const [couponError, setCouponError] = useState<string | null>(null);
   const cart = useQuery({ queryKey: ['cart'], queryFn: getCart, enabled: !!user, refetchOnWindowFocus: true });
   const update = useMutation({
     mutationFn: ({ id, quantity }: { id: string; quantity: number }) => quantity < 1 ? removeCartItem(id) : setCartItemQuantity(id, quantity),
@@ -44,13 +49,45 @@ export default function CartScreen() {
         id: `guest-${entry.medicine.id}`,
         medicineId: entry.medicine.id,
         quantity: entry.quantity,
-        lineTotal: Number(entry.medicine.price) * entry.quantity,
+        lineTotal: entry.medicine.price == null ? null : Number(entry.medicine.price) * entry.quantity,
         medicine: entry.medicine,
       },
     })),
   ];
-  const subtotal = items.reduce((total, { item }) => total + Number(item.lineTotal), 0);
+  const hasUnpricedItem = items.some(({ item }) => item.medicine.price == null);
+  const subtotal = items.reduce((total, { item }) => total + (item.lineTotal == null ? 0 : Number(item.lineTotal)), 0);
+  const cartItemsKey = JSON.stringify(items.map(({ item }) => [item.medicineId, item.quantity]).sort(([a], [b]) => String(a).localeCompare(String(b))));
+  const activeCouponPreview = couponPreviewCartKey === cartItemsKey ? couponPreview : null;
+  const coupon = useMutation({
+    mutationFn: ({ code, orderItems }: { code: string; orderItems: { medicineId: string; quantity: number }[]; cartKey: string }) => validateCoupon(code, orderItems),
+    onSuccess: (preview, variables) => {
+      setCouponCode(variables.code);
+      setCouponPreview(preview);
+      setCouponPreviewCartKey(variables.cartKey);
+      setCouponError(null);
+    },
+    onError: (error) => {
+      setCouponPreview(null);
+      setCouponError(error instanceof ApiError ? error.message : 'Không áp dụng được mã. Vui lòng thử lại.');
+    },
+  });
   const busy = update.isPending || remove.isPending;
+
+  const applyCoupon = () => {
+    if (couponCode) {
+      setCouponCode('');
+      setCouponInput('');
+      setCouponPreview(null);
+      setCouponPreviewCartKey('');
+      setCouponError(null);
+      return;
+    }
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    if (!user) { setCouponError('Đăng nhập để kiểm tra và sử dụng mã giảm giá.'); return; }
+    if (hasUnpricedItem) { setCouponError('Không thể áp dụng mã khi giỏ hàng có sản phẩm cần dược sĩ tư vấn.'); return; }
+    coupon.mutate({ code, cartKey: cartItemsKey, orderItems: items.map(({ item }) => ({ medicineId: item.medicineId, quantity: item.quantity })) });
+  };
 
   const changeQuantity = (item: CartItem, guest: boolean, quantity: number) => {
     if (guest) setGuestQuantity(item.medicineId, quantity);
@@ -63,12 +100,13 @@ export default function CartScreen() {
 
   const loading = authLoading || (!!user && cart.isLoading);
   const loadError = user && cart.error;
+  const pullRefresh = usePullToRefresh(user ? undefined : retryGuestCartSync);
 
   return (
     <ThemedView style={styles.page}>
       <SafeAreaView style={styles.safe} edges={['top']}>
         <AppHeader />
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView alwaysBounceVertical refreshControl={<RefreshControl refreshing={pullRefresh.refreshing} onRefresh={() => void pullRefresh.onRefresh()} tintColor={theme.tint} colors={[theme.tint]} />} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.pageHeading}>
             <View>
               <ThemedText style={styles.title}>Giỏ hàng</ThemedText>
@@ -116,16 +154,16 @@ export default function CartScreen() {
                       {guest && user ? <ThemedText themeColor="textSecondary" style={styles.syncText}>Đang chờ đồng bộ</ThemedText> : null}
                       <View style={styles.itemFooter}>
                         <View>
-                          <ThemedText themeColor="textSecondary" style={styles.unitPrice}>{money.format(Number(item.medicine.price))} / {item.medicine.unit}</ThemedText>
-                          <ThemedText style={[styles.lineTotal, { color: theme.tint }]}>{money.format(Number(item.lineTotal))}</ThemedText>
+                          {item.medicine.price == null ? <ThemedText themeColor="textSecondary" style={styles.unitPrice}>Cần dược sĩ tư vấn · Chưa có giá</ThemedText> : <ThemedText themeColor="textSecondary" style={styles.unitPrice}>{money.format(Number(item.medicine.price))} / {item.medicine.unit}</ThemedText>}
+                          {item.lineTotal == null ? null : <ThemedText style={[styles.lineTotal, { color: theme.tint }]}>{money.format(Number(item.lineTotal))}</ThemedText>}
                         </View>
                         <View style={[styles.quantityControl, { backgroundColor: theme.background }]}>
                           <Pressable accessibilityRole="button" accessibilityLabel={`Giảm số lượng ${item.medicine.name}`} disabled={busy} onPress={() => changeQuantity(item, guest, item.quantity - 1)} hitSlop={6} style={styles.quantityButton}>
                             <ThemedText style={[styles.quantitySymbol, { color: theme.textSecondary }]}>−</ThemedText>
                           </Pressable>
                           <ThemedText accessibilityLabel={`Số lượng ${item.quantity}`} style={styles.quantity}>{item.quantity}</ThemedText>
-                          <Pressable accessibilityRole="button" accessibilityLabel={`Tăng số lượng ${item.medicine.name}`} disabled={busy} onPress={() => changeQuantity(item, guest, item.quantity + 1)} hitSlop={6} style={styles.quantityButton}>
-                            <ThemedText style={[styles.quantitySymbol, { color: theme.tint }]}>+</ThemedText>
+                          <Pressable accessibilityRole="button" accessibilityLabel={`Tăng số lượng ${item.medicine.name}`} disabled={busy || item.medicine.price == null} onPress={() => changeQuantity(item, guest, item.quantity + 1)} hitSlop={6} style={styles.quantityButton}>
+                            <ThemedText style={[styles.quantitySymbol, { color: item.medicine.price == null ? theme.textSecondary : theme.tint }]}>+</ThemedText>
                           </Pressable>
                         </View>
                       </View>
@@ -135,6 +173,7 @@ export default function CartScreen() {
               </View>
 
               {actionError ? <ThemedText accessibilityRole="alert" style={styles.error}>{actionError}</ThemedText> : null}
+              {hasUnpricedItem ? <ThemedText accessibilityRole="alert" themeColor="textSecondary" style={styles.guestNote}>Có sản phẩm chưa niêm yết giá. Sản phẩm vẫn được hiển thị nhưng cần dược sĩ tư vấn và không thể thanh toán.</ThemedText> : null}
               {guestCartSyncError ? <View style={[styles.syncNotice, { backgroundColor: theme.backgroundElement }]}><ThemedText style={styles.error}>{guestCartSyncError}</ThemedText><Pressable accessibilityRole="button" disabled={busy} onPress={() => void retryGuestCartSync()}><ThemedText style={{ color: theme.tint, fontWeight: '700', marginTop: 8 }}>Đồng bộ lại</ThemedText></Pressable></View> : null}
 
               <View style={[styles.couponSection, { borderTopColor: theme.backgroundSelected }]}>
@@ -145,7 +184,7 @@ export default function CartScreen() {
                     autoCapitalize="characters"
                     autoCorrect={false}
                     editable={!couponCode}
-                    onChangeText={setCouponInput}
+                    onChangeText={(value) => { setCouponInput(value); setCouponError(null); }}
                     placeholder="Nhập mã ưu đãi"
                     placeholderTextColor={theme.textSecondary}
                     returnKeyType="done"
@@ -155,29 +194,26 @@ export default function CartScreen() {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={couponCode ? 'Bỏ mã giảm giá' : 'Dùng mã giảm giá'}
-                    disabled={!couponCode && !couponInput.trim()}
-                    onPress={() => {
-                      if (couponCode) { setCouponCode(''); setCouponInput(''); }
-                      else setCouponCode(couponInput.trim().toUpperCase());
-                    }}
+                    disabled={coupon.isPending || (!couponCode && !couponInput.trim())}
+                    onPress={applyCoupon}
                     style={[styles.couponButton, { backgroundColor: couponCode ? theme.backgroundSelected : theme.tint, opacity: !couponCode && !couponInput.trim() ? 0.5 : 1 }]}
                   >
-                    <ThemedText style={{ color: couponCode ? theme.text : '#FFFFFF', fontWeight: '700' }}>{couponCode ? 'Bỏ mã' : 'Dùng mã'}</ThemedText>
+                    <ThemedText style={{ color: couponCode ? theme.text : '#FFFFFF', fontWeight: '700' }}>{coupon.isPending ? 'Đang kiểm tra…' : couponCode ? 'Bỏ mã' : 'Áp dụng'}</ThemedText>
                   </Pressable>
                 </View>
-                <ThemedText themeColor="textSecondary" style={styles.couponHint}>
-                  {couponCode ? `Đã chọn ${couponCode}. Mã và mức giảm sẽ được máy chủ xác minh khi đặt hàng.` : 'Mã giảm giá được xác minh khi bạn đặt hàng.'}
-                </ThemedText>
+                {couponError ? <ThemedText accessibilityRole="alert" style={styles.error}>{couponError}</ThemedText> : null}
+                {couponCode && activeCouponPreview ? <ThemedText style={[styles.couponHint, { color: theme.tint }]}>{`Đã áp dụng ${activeCouponPreview.code} · Giảm ${money.format(Number(activeCouponPreview.discountAmount))}`}</ThemedText> : couponCode ? <ThemedText themeColor="textSecondary" style={styles.couponHint}>Giỏ hàng đã thay đổi. Mã sẽ được kiểm tra lại khi đặt hàng.</ThemedText> : <ThemedText themeColor="textSecondary" style={styles.couponHint}>Nhập mã để xem mức giảm trước khi đặt hàng.</ThemedText>}
               </View>
 
               <View style={[styles.summary, { borderTopColor: theme.backgroundSelected }]}>
                 <ThemedText style={styles.summaryHeading}>Tóm tắt đơn hàng</ThemedText>
-                <View style={styles.summaryRow}><ThemedText themeColor="textSecondary">Tạm tính ({items.reduce((total, entry) => total + entry.item.quantity, 0)} sản phẩm)</ThemedText><ThemedText style={styles.summaryValue}>{money.format(subtotal)}</ThemedText></View>
-                <View style={styles.summaryRow}><ThemedText themeColor="textSecondary">Phí giao hàng</ThemedText><ThemedText themeColor="textSecondary" style={styles.summaryValue}>Tính khi đặt hàng</ThemedText></View>
-                <View style={[styles.totalRow, { borderTopColor: theme.backgroundSelected }]}><ThemedText style={styles.totalLabel}>Tổng cộng</ThemedText><ThemedText style={[styles.totalValue, { color: theme.tint }]}>{money.format(subtotal)}</ThemedText></View>
+                <View style={styles.summaryRow}><ThemedText themeColor="textSecondary">Tạm tính ({items.reduce((total, entry) => total + entry.item.quantity, 0)} sản phẩm)</ThemedText><ThemedText style={styles.summaryValue}>{hasUnpricedItem ? 'Cần dược sĩ tư vấn' : money.format(subtotal)}</ThemedText></View>
+                {activeCouponPreview ? <View style={styles.summaryRow}><ThemedText themeColor="textSecondary">Giảm giá ({activeCouponPreview.code})</ThemedText><ThemedText style={[styles.summaryValue, { color: theme.tint }]}>− {money.format(Number(activeCouponPreview.discountAmount))}</ThemedText></View> : null}
+                <View style={styles.summaryRow}><ThemedText themeColor="textSecondary" style={styles.summaryLabel}>Phí giao hàng</ThemedText><ThemedText numberOfLines={1} themeColor="textSecondary" style={[styles.summaryValue, styles.deliveryValue]}>Miễn phí</ThemedText></View>
+                <View style={[styles.totalRow, { borderTopColor: theme.backgroundSelected }]}><ThemedText style={styles.totalLabel}>Tổng cộng</ThemedText><ThemedText style={[styles.totalValue, { color: theme.tint }]}>{hasUnpricedItem ? 'Chưa xác định' : money.format(activeCouponPreview ? Number(activeCouponPreview.totalAmount) : subtotal)}</ThemedText></View>
                 {!user ? <ThemedText themeColor="textSecondary" style={styles.loginHint}>Bạn cần đăng nhập để tiếp tục thanh toán.</ThemedText> : null}
-                <Pressable accessibilityRole="button" onPress={() => user ? router.push({ pathname: '/checkout', params: { couponCode: couponCode || undefined } }) : router.push('/auth/login')} style={[styles.checkoutButton, { backgroundColor: theme.tint }]}>
-                  <ThemedText style={styles.checkoutButtonText}>{user ? 'Tiến hành thanh toán' : 'Đăng nhập để thanh toán'}</ThemedText>
+                <Pressable accessibilityRole="button" disabled={hasUnpricedItem} onPress={() => user ? router.push({ pathname: '/checkout', params: { couponCode: couponCode || undefined } }) : router.push('/auth/login')} style={[styles.checkoutButton, { backgroundColor: hasUnpricedItem ? theme.textSecondary : theme.tint }]}>
+                  <ThemedText style={styles.checkoutButtonText}>{hasUnpricedItem ? 'Cần dược sĩ tư vấn · Chưa thể mua' : user ? 'Tiến hành thanh toán' : 'Đăng nhập để thanh toán'}</ThemedText>
                 </Pressable>
               </View>
             </>
@@ -231,7 +267,9 @@ const styles = StyleSheet.create({
   summary: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 22, paddingTop: 18 },
   summaryHeading: { fontSize: 16, fontWeight: '800', marginBottom: 13 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 12 },
-  summaryValue: { fontSize: 13, fontWeight: '600' },
+  summaryLabel: { flex: 1, minWidth: 0 },
+  summaryValue: { fontSize: 13, fontWeight: '600', flexShrink: 0, textAlign: 'right' },
+  deliveryValue: { minWidth: 72 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14, marginTop: 3 },
   totalLabel: { fontSize: 15, fontWeight: '700' },
   totalValue: { fontSize: 19, fontWeight: '800' },

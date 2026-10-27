@@ -29,18 +29,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return () => { active = false; };
   }, []);
 
-  useEffect(() => onSessionExpired(() => { void clearCredentials(); setUser(null); queryClient.removeQueries({ queryKey: ['cart'] }); queryClient.removeQueries({ queryKey: ['orders'] }); queryClient.removeQueries({ queryKey: ['profile'] }); queryClient.removeQueries({ queryKey: ['addresses'] }); queryClient.removeQueries({ queryKey: ['notifications'] }); }), [queryClient]);
+  useEffect(() => onSessionExpired(() => { void clearCredentials(); setUser(null); queryClient.removeQueries({ queryKey: ['cart'] }); queryClient.removeQueries({ queryKey: ['orders'] }); queryClient.removeQueries({ queryKey: ['profile'] }); queryClient.removeQueries({ queryKey: ['addresses'] }); queryClient.removeQueries({ queryKey: ['notifications'] }); queryClient.removeQueries({ queryKey: ['support-chat'] }); }), [queryClient]);
 
   const acceptSession = useCallback(async (response: AuthResponse) => {
+    if (user && user.id !== response.user.id) await unregisterPushDevice();
     await saveCredentials({ accessToken: response.accessToken, refreshToken: response.refreshToken, user: JSON.stringify(response.user) });
+    queryClient.removeQueries({ queryKey: ['support-chat'] });
     setUser(response.user);
-  }, []);
+  }, [queryClient, user]);
 
   const syncGuestCart = useCallback(async () => {
     setGuestCartSyncError(null);
     await queryClient.cancelQueries({ queryKey: ['cart'] });
     let didSync = false;
     for (const entry of guestItems) {
+      if (entry.medicine.price == null) {
+        setGuestCartSyncError('Một sản phẩm chưa niêm yết giá cần dược sĩ tư vấn nên chưa được đồng bộ vào giỏ tài khoản.');
+        continue;
+      }
       try {
         const cart = await addCartItem(entry.medicine.id, entry.quantity);
         didSync = true;
@@ -92,6 +98,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     queryClient.removeQueries({ queryKey: ['profile'] });
     queryClient.removeQueries({ queryKey: ['addresses'] });
     queryClient.removeQueries({ queryKey: ['notifications'] });
+    queryClient.removeQueries({ queryKey: ['support-chat'] });
   }, [queryClient]);
 
   const value = useMemo(() => ({ user, loading, guestItems, guestCartSyncError, addGuestItem, setGuestQuantity, removeGuestItem, retryGuestCartSync: syncGuestCart, signIn, signUp, signOut }), [user, loading, guestItems, guestCartSyncError, addGuestItem, setGuestQuantity, removeGuestItem, syncGuestCart, signIn, signUp, signOut]);

@@ -1,7 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { ThemedText } from '@/components/themed-text';
@@ -12,12 +12,15 @@ import { ProductSearchField } from '@/features/catalog/components/product-search
 import { useMedicineCategories } from '@/features/catalog/hooks/use-medicine-categories';
 import { useMedicineSearch } from '@/features/catalog/hooks/use-medicine-search';
 import { useTheme } from '@/hooks/use-theme';
+import { usePullToRefresh } from '@/shared/hooks/use-pull-to-refresh';
 
 export default function HomeScreen() {
   const theme = useTheme();
   const router = useRouter();
   const [catalog, setCatalog] = useState('');
+  const [productsRefreshKey, setProductsRefreshKey] = useState(0);
   const categories = useMedicineCategories();
+  const pullRefresh = usePullToRefresh(() => { categories.retry(); setProductsRefreshKey((key) => key + 1); });
 
   function submitSearch() {
     router.push({ pathname: '/search', params: catalog.trim() ? { keyword: catalog.trim() } : {} });
@@ -27,7 +30,7 @@ export default function HomeScreen() {
     <ThemedView style={styles.page}>
       <SafeAreaView style={styles.safe} edges={['top']}>
         <AppHeader />
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView alwaysBounceVertical refreshControl={<RefreshControl refreshing={pullRefresh.refreshing} onRefresh={() => void pullRefresh.onRefresh()} tintColor={theme.tint} colors={[theme.tint]} />} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <ProductSearchField value={catalog} onChangeText={setCatalog} onSubmit={submitSearch} />
 
           <View style={[styles.hero, { backgroundColor: theme.backgroundSelected }]}>
@@ -50,8 +53,8 @@ export default function HomeScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
             {categories.loading ? <CategorySkeleton /> : null}
             {categories.error ? <Pressable accessibilityRole="button" onPress={categories.retry}><ThemedText style={{ color: theme.tint }}>Tải lại danh mục</ThemedText></Pressable> : null}
-            {!categories.loading && !categories.error && categories.categories.map((name, index) => (
-              <CategoryTile key={name} name={name} index={index} onPress={() => router.push({ pathname: '/category/[name]', params: { name } })} />
+            {!categories.loading && !categories.error && categories.categoryItems.map((item, index) => (
+              <CategoryTile key={item.id} name={item.name} imageUrl={item.imageUrl} index={index} onPress={() => router.navigate('/categories')} />
             ))}
             {!categories.loading && !categories.error && !categories.categories.length ? <ThemedText themeColor="textSecondary" style={styles.stateText}>Chưa có danh mục.</ThemedText> : null}
           </ScrollView>
@@ -65,7 +68,7 @@ export default function HomeScreen() {
               <ThemedText style={[styles.seeAll, { color: theme.tint }]}>Xem tất cả ›</ThemedText>
             </Pressable>
           </View>
-          <HomeProducts />
+          <HomeProducts refreshKey={productsRefreshKey} />
           <ThemedText themeColor="textSecondary" style={styles.disclaimer}>Thông tin sản phẩm chỉ mang tính tham khảo. Vui lòng đọc kỹ hướng dẫn sử dụng.</ThemedText>
         </ScrollView>
       </SafeAreaView>
@@ -73,10 +76,11 @@ export default function HomeScreen() {
   );
 }
 
-function HomeProducts() {
+function HomeProducts({ refreshKey }: { refreshKey: number }) {
   const theme = useTheme();
   const router = useRouter();
   const catalog = useMedicineSearch('', undefined, 4);
+  useEffect(() => { if (refreshKey) catalog.retry(); }, [refreshKey]);
 
   if (catalog.loading) return <ProductSkeleton />;
   if (catalog.error) {
@@ -137,7 +141,7 @@ function ProductSkeleton() {
   );
 }
 
-function CategoryTile({ name, index, onPress }: { name: string; index: number; onPress: () => void }) {
+function CategoryTile({ name, imageUrl, index, onPress }: { name: string; imageUrl?: string | null; index: number; onPress: () => void }) {
   const theme = useTheme();
 
   return (
@@ -148,7 +152,7 @@ function CategoryTile({ name, index, onPress }: { name: string; index: number; o
       style={({ pressed }) => [styles.category, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.72 : 1 }]}
     >
       <View style={[styles.categoryIcon, { backgroundColor: theme.background }]}>
-        <CategoryArtwork category={name} index={index} imageStyle={styles.categoryImage} fallbackStyle={styles.categoryMark} />
+        <CategoryArtwork category={name} index={index} imageUrl={imageUrl} imageStyle={styles.categoryImage} fallbackStyle={styles.categoryMark} />
       </View>
       <ThemedText style={styles.categoryText} numberOfLines={2}>{name}</ThemedText>
     </Pressable>

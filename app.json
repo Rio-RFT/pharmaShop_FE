@@ -20,7 +20,7 @@
       "googleServicesFile": "./google-services.json"
     },
     "web": {
-      "output": "server",
+      "output": "single",
       "favicon": "./assets/images/pharmashop-app-icon.png"
     },
     "plugins": [
@@ -28,6 +28,7 @@
       "@react-native-google-signin/google-signin",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
+      "@react-native-firebase/messaging",
       "expo-notifications",
       [
         "expo-splash-screen",
@@ -46,7 +47,9 @@
             "kotlinVersion": "2.4.0"
           }
         }
-      ]
+      ],
+      "expo-image",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,

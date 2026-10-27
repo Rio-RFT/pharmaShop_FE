@@ -1,0 +1,247 @@
+﻿<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PharmaShop · HTML sang JSON sản phẩm</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; color: #172b25; background: #f4f8f6; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 28px 16px; }
+    main { max-width: 880px; margin: auto; }
+    h1 { margin: 0 0 8px; font-size: 26px; }
+    p { color: #61716b; line-height: 1.5; }
+    label { display: block; margin: 18px 0 7px; font-size: 14px; font-weight: 700; }
+    textarea, select, input { width: 100%; border: 1px solid #cbd8d2; border-radius: 10px; background: white; color: inherit; font: inherit; padding: 12px; }
+    textarea { min-height: 130px; resize: vertical; }
+    #source { min-height: 260px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+    #output, #sql-output { min-height: 300px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+    button { margin-top: 16px; border: 0; border-radius: 10px; min-height: 46px; padding: 0 18px; background: #16866b; color: white; font-weight: 750; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .row { display: grid; grid-template-columns: 1fr 140px; gap: 12px; }
+    .status { min-height: 22px; margin-top: 10px; color: #b42318; font-size: 13px; }
+    .hint { font-size: 12px; }
+    @media (max-width: 560px) { .row { grid-template-columns: 1fr; } body { padding: 20px 12px; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Chuyển HTML sản phẩm sang JSON</h1>
+  <p>Dán HTML đã copy từ trang danh sách sản phẩm. Công cụ đọc tên, giá, đơn vị và ảnh; danh mục chọn từ danh sách bạn nhập. Không tải dữ liệu lên máy chủ.</p>
+
+  <label for="category-options">Danh mục hiện có (dán JSON API gồm id, name, isActive)</label>
+  <textarea id="category-options" placeholder='{"data":[{"id":"...","name":"Dầu xoa bóp, dầu gió","isActive":true}]}'></textarea>
+  <div id="category-options-status" class="status" role="status" aria-live="polite"></div>
+  <label for="category-parent">Danh mục cha cho danh mục mới</label>
+  <select id="category-parent"><option value="">Danh mục gốc</option></select>
+  <div class="row">
+    <div>
+      <label for="category">Danh mục áp dụng cho các sản phẩm</label>
+      <select id="category"><option value="">Dán JSON danh mục phía trên trước</option></select>
+    </div>
+    <div>
+      <label for="stock">Tồn kho mặc định</label>
+      <input id="stock" type="number" min="0" step="1" value="100">
+    </div>
+  </div>
+  <label for="unit-default">Đơn vị dùng khi HTML không ghi rõ</label>
+  <input id="unit-default" value="Hộp" maxlength="40" required>
+  <label for="source">HTML nguồn</label>
+  <textarea id="source" placeholder="Dán HTML sản phẩm vào đây"></textarea>
+  <button id="convert" type="button">Tạo JSON</button>
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+  <label for="output">JSON để dán vào Admin → Sản phẩm → Nhập JSON</label>
+  <textarea id="output" readonly placeholder="JSON sẽ xuất hiện ở đây"></textarea>
+  <button id="copy" type="button">Sao chép JSON</button>
+  <label for="sql-output">SQL PostgreSQL để chạy trực tiếp trên database</label>
+  <textarea id="sql-output" readonly placeholder="SQL sẽ được tạo cùng JSON"></textarea>
+  <button id="copy-sql" type="button">Sao chép SQL</button>
+  <p class="hint">SQL dùng categoryId đã chọn và giữ price: null. Chạy trực tiếp sẽ bỏ qua kiểm tra API và cache invalidation; cần có hierarchy migration trước, rồi xóa cache catalog trên backend. Hãy kiểm tra đúng database trước khi chạy.</p>
+  <p class="hint">Kh&#244;ng &#273;&#7885;c &#273;&#432;&#7907;c gi&#225; th&#236; xu&#7845;t <code>price: null</code>. S&#7843;n ph&#7849;m c&#7847;n d&#432;&#7907;c s&#297; t&#432; v&#7845;n v&#224; kh&#244;ng th&#7875; mua; backend c&#7847;n h&#7895; tr&#7907; gi&#225; null.</p>
+
+  <hr style="border:0;border-top:1px solid #d8e2dd;margin:32px 0">
+  <h2>Chuyển HTML danh mục sang JSON</h2>
+  <p>Dán HTML lưới danh mục. Công cụ lấy tên từ tiêu đề <code>h2</code> (hoặc <code>label</code> ở mẫu cũ) và URL ảnh từ <code>img[src]</code>; tự bỏ mục “Xem tất cả” không có ảnh.</p>
+  <label for="category-source">HTML danh mục</label>
+  <textarea id="category-source" placeholder="Dán HTML lưới danh mục vào đây"></textarea>
+  <button id="convert-categories" type="button">Tạo JSON danh mục</button>
+  <div id="category-status" class="status" role="status" aria-live="polite"></div>
+  <label for="category-output">JSON danh mục (name, imageUrl, parentId)</label>
+  <textarea id="category-output" readonly placeholder="JSON danh mục sẽ xuất hiện ở đây"></textarea>
+  <button id="copy-categories" type="button">Sao chép JSON danh mục</button>
+
+  <label for="combined-output">JSON gộp để dán vào Admin (categories được xử lý trước products)</label>
+  <textarea id="combined-output" readonly placeholder='{"products":[],"categories":[]}'></textarea>
+  <button id="copy-combined" type="button">Sao chép JSON gộp</button>
+</main>
+<script>
+  function sqlLiteral(value) {
+    if (value === null || value === undefined) return 'NULL';
+    return "'" + String(value).replace(/'/g, "''") + "'";
+  }
+  function newSqlUuid() {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
+    const hex = [...bytes].map((v) => v.toString(16).padStart(2, '0')).join('');
+    return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
+  }
+  function generateProductSql(products) {
+    const rows = products.map((product, index) => {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(product.categoryId || '')) throw new Error('Sản phẩm '+(index+1)+': categoryId không hợp lệ; hãy tải lại danh mục và chọn lại.');
+      if (product.price !== null && (!Number.isFinite(product.price) || product.price < 0 || Math.round(product.price*100) !== product.price*100)) throw new Error('Sản phẩm '+(index+1)+': giá phải là số không âm tối đa 2 chữ số thập phân hoặc null.');
+      const imageUrl = product.imageUrl || null;
+      if (imageUrl !== null && new URL(imageUrl).protocol !== 'https:') throw new Error('Sản phẩm '+(index+1)+': imageUrl phải dùng HTTPS.');
+      const values = [sqlLiteral(newSqlUuid()),sqlLiteral(product.name),sqlLiteral('Chưa cập nhật'),sqlLiteral(product.category),sqlLiteral(product.categoryId),'NULL',product.price === null ? 'NULL' : String(product.price),String(product.stockQuantity),sqlLiteral(product.unit),'NULL',sqlLiteral(product.unit),sqlLiteral(imageUrl),'TRUE','CURRENT_TIMESTAMP','CURRENT_TIMESTAMP'];
+      return '  ('+values.join(', ')+')';
+    });
+    return ['-- Generated by PharmaShop medicine HTML importer.','-- Run against the PostgreSQL database whose category IDs were loaded into this tool.','BEGIN;','INSERT INTO "Medicine" ("id", "name", "activeIngredient", "category", "categoryId", "importKey", "price", "stockQuantity", "unit", "barcode", "packaging", "imageUrl", "isActive", "createdAt", "updatedAt")','VALUES',rows.join(',\n'),'ON CONFLICT ("id") DO NOTHING;','COMMIT;'].join('\n');
+  }
+
+  const optionsField = document.querySelector('#category-options');
+  const categorySelect = document.querySelector('#category');
+  const parentSelect = document.querySelector('#category-parent');
+  const status = document.querySelector('#status');
+  const categoryOptionsStatus = document.querySelector('#category-options-status');
+  const combinedOutput = document.querySelector('#combined-output');
+  function updateCombinedOutput() {
+    const products = document.querySelector('#output').value ? JSON.parse(document.querySelector('#output').value) : [];
+    const categories = document.querySelector('#category-output').value ? JSON.parse(document.querySelector('#category-output').value) : [];
+    combinedOutput.value = JSON.stringify({ products, categories }, null, 2);
+  }
+
+  function refreshCategories() {
+    const previous = categorySelect.value;
+    categoryOptionsStatus.textContent = '';
+    try {
+      const parsed = JSON.parse(optionsField.value);
+      const rows = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.data) ? parsed.data : Array.isArray(parsed?.items) ? parsed.items : null;
+      if (!rows) throw new Error('JSON cần là mảng hoặc response có data[].');
+      const categories = rows.filter((item) => item && typeof item.id === 'string' && item.id.trim() && typeof item.name === 'string' && item.name.trim() && item.isActive === true);
+      const parentValue = parentSelect.value;
+      const parents = new Map(categories.map((item) => [item.id, item.parentId || null]));
+      const hasChildren = new Set(categories.map((item) => item.parentId).filter(Boolean));
+      const leaves = categories.filter((item) => !hasChildren.has(item.id));
+      categorySelect.replaceChildren(new Option(leaves.length ? 'Chọn danh mục lá' : 'Không có danh mục lá đang hoạt động', ''));
+      for (const item of leaves) categorySelect.add(new Option(item.name.trim(), item.id.trim()));
+      if (leaves.some((item) => item.id === previous)) categorySelect.value = previous;
+      parentSelect.replaceChildren(new Option('Danh mục gốc', ''));
+      for (const item of categories) parentSelect.add(new Option(item.name.trim(), item.id.trim()));
+      if (parents.has(parentValue)) parentSelect.value = parentValue;
+      categoryOptionsStatus.textContent = `Đã nhận ${categories.length} danh mục đang hoạt động.`;
+      categoryOptionsStatus.style.color = '#16866b';
+    } catch (error) {
+      categorySelect.replaceChildren(new Option('JSON danh mục chưa hợp lệ', ''));
+      if (optionsField.value.trim()) categoryOptionsStatus.textContent = error instanceof Error ? error.message : 'JSON không hợp lệ.';
+      categoryOptionsStatus.style.color = '#b42318';
+    }
+  }
+  optionsField.addEventListener('input', refreshCategories);
+  refreshCategories();
+
+  function parsePrice(text) {
+    const normalized = text.replace(/\u00a0/g, ' ').trim();
+    const match = normalized.match(/([\d.]+(?:,\d+)?)\s*(?:₫|đ|VND)/i) || normalized.match(/([\d.]+(?:,\d+)?)\s*\//);
+    if (!match) return null;
+    const value = Number(match[1].replace(/\./g, '').replace(',', '.'));
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  }
+
+  function productCards(doc) {
+    const identified = [...doc.querySelectorAll('.product-list [data-plp-product-id]')];
+    return identified.length ? identified : [...doc.querySelectorAll('.product-list .product-card-new')];
+  }
+
+  document.querySelector('#convert').addEventListener('click', () => {
+    status.textContent = '';
+    const categoryId = categorySelect.value;
+    let categoriesJson;
+    try { categoriesJson = JSON.parse(optionsField.value); } catch { status.textContent = 'Dán JSON danh mục hợp lệ trước.'; return; }
+    const categoryRows = Array.isArray(categoriesJson) ? categoriesJson : categoriesJson?.data ?? categoriesJson?.items;
+    const categoryRecord = categoryRows?.find((item) => item.id === categoryId && item.isActive === true);
+    const stockQuantity = Number(document.querySelector('#stock').value);
+    const defaultUnit = document.querySelector('#unit-default').value.trim();
+    if (!defaultUnit || defaultUnit.length > 40) { status.textContent = 'Nhập đơn vị mặc định hợp lệ trước.'; return; }
+      if (!categoryId || !categoryRecord) { status.textContent = 'Hãy dán JSON danh mục hợp lệ và chọn danh mục lá đang hoạt động.'; return; }
+    if (!Number.isInteger(stockQuantity) || stockQuantity < 0) { status.textContent = 'Tồn kho phải là số nguyên không âm.'; return; }
+    const html = document.querySelector('#source').value;
+    if (!html.trim()) { status.textContent = 'Hãy dán HTML nguồn trước.'; return; }
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const cards = productCards(doc);
+    if (!cards.length) { status.textContent = 'Không tìm thấy thẻ sản phẩm. Mẫu cần có .product-list và các thẻ data-plp-product-id.'; return; }
+
+    const products = [];
+    const errors = [];
+    cards.forEach((card, index) => {
+      const name = card.querySelector('h3')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+      const priceText = [...card.querySelectorAll('span')].map((node) => node.textContent ?? '').find((value) => /(?:₫|đ|VND)\s*\//i.test(value));
+      const price = priceText ? parsePrice(priceText) : null;
+      const unit = priceText?.match(/\/\s*([^\s/]+)/)?.[1]?.trim() || defaultUnit;
+      const imageUrl = card.querySelector('img')?.getAttribute('src')?.trim();
+      if (!name) { errors.push(`Sản phẩm ${index + 1}: thiếu tên, đã bỏ qua.`); return; }
+      if (price === null) errors.push(`Sản phẩm ${index + 1}: chưa đọc được giá; đã giữ sản phẩm với price: null, không thể mua và cần dược sĩ tư vấn.`);
+      products.push({ name, category: categoryRecord.name.trim(), categoryId: categoryRecord.id, price, stockQuantity, unit, ...(imageUrl ? { imageUrl: new URL(imageUrl, window.location.href).href } : {}) });
+    });
+    if (!products.length) { status.textContent = errors.join(' '); return; }
+    let sql;
+    try { sql = generateProductSql(products); }
+    catch (error) { status.textContent = error instanceof Error ? error.message : 'Không thể tạo SQL.'; status.style.color = '#b42318'; return; }
+    document.querySelector('#output').value = JSON.stringify(products, null, 2);
+    document.querySelector('#sql-output').value = sql;
+    updateCombinedOutput();
+    status.textContent = `Đã đọc ${products.length} sản phẩm.${errors.length ? ` Bỏ qua ${errors.length} mục: ${errors.join(' ')}` : ''}`;
+    status.style.color = errors.length ? '#9a6700' : '#16866b';
+  });
+
+  document.querySelector('#copy').addEventListener('click', async () => {
+    const output = document.querySelector('#output');
+    if (!output.value) { status.textContent = 'Chưa có JSON để sao chép.'; return; }
+    try { await navigator.clipboard.writeText(output.value); status.textContent = 'Đã sao chép JSON.'; status.style.color = '#16866b'; }
+    catch { output.focus(); output.select(); status.textContent = 'Không thể truy cập clipboard; JSON đã được chọn để bạn sao chép.'; }
+  });
+
+
+  document.querySelector('#copy-sql').addEventListener('click', async () => {
+    const output = document.querySelector('#sql-output');
+    if (!output.value) { status.textContent = 'Chưa có SQL để sao chép.'; return; }
+    try { await navigator.clipboard.writeText(output.value); status.textContent = 'Đã sao chép SQL.'; status.style.color = '#16866b'; }
+    catch { output.focus(); output.select(); status.textContent = 'SQL đã được chọn để bạn sao chép.'; }
+  });
+  const categoryStatus = document.querySelector('#category-status');
+  document.querySelector('#convert-categories').addEventListener('click', () => {
+    categoryStatus.textContent = '';
+    const html = document.querySelector('#category-source').value;
+    if (!html.trim()) { categoryStatus.textContent = 'Hãy dán HTML danh mục trước.'; return; }
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const links = [...doc.querySelectorAll('.grid a')];
+    const entries = [];
+    for (const link of links) {
+      const label = link.querySelector('h2, label');
+      const name = (label?.getAttribute('title') || label?.textContent || '').replace(/\s+/g, ' ').trim();
+      const source = link.querySelector('img')?.getAttribute('src')?.trim();
+      if (!name || !source || /xem\s+tất\s+cả/i.test(name)) continue;
+      const imageUrl = new URL(source, window.location.href).href;
+      if (!entries.some((entry) => entry.name.trim() === name.trim())) entries.push({ name, imageUrl, ...(parentSelect.value ? { parentId: parentSelect.value } : {}) });
+    }
+    if (!entries.length) { categoryStatus.textContent = 'Không tìm thấy mục danh mục có tên và ảnh trong HTML.'; return; }
+    document.querySelector('#category-output').value = JSON.stringify(entries, null, 2);
+    updateCombinedOutput();
+    categoryStatus.textContent = `Đã đọc ${entries.length} danh mục.`;
+    categoryStatus.style.color = '#16866b';
+  });
+  document.querySelector('#copy-categories').addEventListener('click', async () => {
+    const output = document.querySelector('#category-output');
+    if (!output.value) { categoryStatus.textContent = 'Chưa có JSON để sao chép.'; return; }
+    try { await navigator.clipboard.writeText(output.value); categoryStatus.textContent = 'Đã sao chép JSON danh mục.'; categoryStatus.style.color = '#16866b'; }
+    catch { output.focus(); output.select(); categoryStatus.textContent = 'Không thể truy cập clipboard; JSON đã được chọn để sao chép.'; }
+  });
+  document.querySelector('#copy-combined').addEventListener('click', async () => {
+    if (!combinedOutput.value) { status.textContent = 'Chưa có JSON để sao chép.'; return; }
+    try { await navigator.clipboard.writeText(combinedOutput.value); status.textContent = 'Đã sao chép JSON gộp.'; status.style.color = '#16866b'; }
+    catch { combinedOutput.focus(); combinedOutput.select(); status.textContent = 'JSON gộp đã được chọn để sao chép.'; }
+  });
+</script>
+</body>
+</html>

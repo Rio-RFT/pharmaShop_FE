@@ -11,11 +11,12 @@ const fallbackMarks = ['Rx', 'V', '✳', '+', '•'];
 type CategoryArtworkProps = {
   category: string;
   index: number;
+  imageUrl?: string | null;
   imageStyle?: StyleProp<ImageStyle>;
   fallbackStyle?: StyleProp<TextStyle>;
 };
 
-export function CategoryArtwork({ category, index, imageStyle, fallbackStyle }: CategoryArtworkProps) {
+export function CategoryArtwork({ category, index, imageUrl: categoryImageUrl, imageStyle, fallbackStyle }: CategoryArtworkProps) {
   const theme = useTheme();
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const imageQuery = useQuery({
@@ -24,9 +25,10 @@ export function CategoryArtwork({ category, index, imageStyle, fallbackStyle }: 
       const result = await searchMedicines({ category, page: 1, limit: 12 });
       return result.data.find((medicine) => medicine.imageUrl)?.imageUrl ?? null;
     },
+    enabled: !categoryImageUrl,
     staleTime: 5 * 60 * 1000,
   });
-  const imageUrl = imageQuery.data;
+  const imageUrl = categoryImageUrl || imageQuery.data;
 
   useEffect(() => setFailedImage(null), [imageUrl]);
 

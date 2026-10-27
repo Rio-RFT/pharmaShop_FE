@@ -8,8 +8,9 @@ import { Image } from 'expo-image';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { usePullToRefresh } from '@/shared/hooks/use-pull-to-refresh';
 
 type BlockType = NotificationBlock['type'];
 const newBlock = (type: BlockType): NotificationBlock => {
@@ -26,6 +27,7 @@ export default function AdminBroadcastScreen() {
   const [blocks, setBlocks] = useState<NotificationBlock[]>([]); const [validationError, setValidationError] = useState(''); const [result, setResult] = useState<BroadcastResult | null>(null); const [view, setView] = useState<'history' | 'compose'>('history');
   const queryClient = useQueryClient();
   const history = useInfiniteQuery({ queryKey: ['notifications', 'admin-history'], queryFn: ({ pageParam }) => getNotifications(pageParam), initialPageParam: 1, getNextPageParam: (last) => last.hasMore ? last.page + 1 : undefined, enabled: isAdmin });
+  const pullRefresh = usePullToRefresh();
   const broadcast = useMutation({ mutationFn: (input: BroadcastInput) => broadcastNotification(input), onSuccess: (data) => { setResult(data); setTitle(''); setBody(''); setBlocks([]); setType('SHORT'); setView('history'); void queryClient.invalidateQueries({ queryKey: ['notifications'] }); } });
 
   const setBlock = (index: number, block: NotificationBlock) => setBlocks((current) => current.map((item, itemIndex) => itemIndex === index ? block : item));
@@ -56,7 +58,7 @@ export default function AdminBroadcastScreen() {
   if (loading) return <ThemedView style={styles.center}><ThemedText>Đang kiểm tra quyền truy cập...</ThemedText></ThemedView>;
   if (!isAdmin) return <ThemedView style={styles.center}><ThemedText style={styles.heading}>Chỉ tài khoản ADMIN mới được gửi thông báo.</ThemedText><Pressable onPress={() => router.back()}><ThemedText style={{ color: theme.tint }}>Quay lại</ThemedText></Pressable></ThemedView>;
 
-  return <ThemedView style={styles.page}><SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+  return <ThemedView style={styles.page}><SafeAreaView style={styles.safe} edges={['top']}><ScrollView alwaysBounceVertical refreshControl={<RefreshControl refreshing={pullRefresh.refreshing} onRefresh={() => void pullRefresh.onRefresh()} tintColor={theme.tint} colors={[theme.tint]} />} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}><ThemedText style={{ color: theme.tint, fontWeight: '700' }}>‹ Quản trị</ThemedText></Pressable>
     <ThemedText style={styles.heading}>Thông báo toàn hệ thống</ThemedText><ThemedText themeColor="textSecondary" style={styles.description}>Gửi nội dung tới inbox người dùng đang hoạt động; push được gửi đến thiết bị đã đăng ký.</ThemedText>
     <View style={styles.modeTabs}>{(['history', 'compose'] as const).map((value) => <Pressable key={value} onPress={() => setView(value)} style={[styles.modeTab, { backgroundColor: view === value ? theme.tint : theme.backgroundElement }]}><ThemedText style={{ color: view === value ? '#fff' : theme.text, fontWeight: '700' }}>{value === 'history' ? 'Lịch sử' : 'Soạn thông báo'}</ThemedText></Pressable>)}</View>

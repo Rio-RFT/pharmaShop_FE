@@ -3,9 +3,10 @@ import { apiGet, apiPatch, apiPost } from '@/shared/api/client';
 export type OrderItem = {
   id: string;
   medicineId: string;
+  medicineName?: string;
   quantity: number;
   unitPrice: number | string;
-  medicine?: { name?: string; imageUrl?: string | null };
+  medicine?: { id?: string; name?: string; imageUrl?: string | null } | null;
 };
 
 export type Order = {
@@ -53,7 +54,25 @@ export function createOrder(input: CreateOrderInput) {
   return apiPost<Order, CreateOrderInput>('/orders', input);
 }
 
-export type PayOSLink = { orderId: string; orderCode: number; checkoutUrl: string; qrCode?: string; amount: number };
+export type PayOSAccount = {
+  bankBin: string | null;
+  accountNumber: string | null;
+  accountName: string | null;
+};
+
+export type PayOSLink = {
+  orderId: string;
+  orderCode?: number | string | null;
+  paymentLinkId?: string | null;
+  amount: number | string;
+  currency?: string | null;
+  description?: string | null;
+  checkoutUrl: string | null;
+  qrCode?: string | null;
+  account?: PayOSAccount | null;
+  paymentStatus?: string;
+  message?: string | null;
+};
 
 export function createPayOSLink(orderId: string) {
   return apiPost<PayOSLink, Record<string, never>>(`/payments/payos/${encodeURIComponent(orderId)}/link`, {});
