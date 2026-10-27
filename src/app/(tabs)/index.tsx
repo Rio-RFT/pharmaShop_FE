@@ -48,7 +48,7 @@ export default function HomeScreen() {
             </Pressable>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
-            {categories.loading ? <ThemedText themeColor="textSecondary" style={styles.stateText}>Đang tải danh mục…</ThemedText> : null}
+            {categories.loading ? <CategorySkeleton /> : null}
             {categories.error ? <Pressable accessibilityRole="button" onPress={categories.retry}><ThemedText style={{ color: theme.tint }}>Tải lại danh mục</ThemedText></Pressable> : null}
             {!categories.loading && !categories.error && categories.categories.map((name, index) => (
               <CategoryTile key={name} name={name} index={index} onPress={() => router.push({ pathname: '/category/[name]', params: { name } })} />
@@ -78,7 +78,7 @@ function HomeProducts() {
   const router = useRouter();
   const catalog = useMedicineSearch('', undefined, 4);
 
-  if (catalog.loading) return <ThemedText themeColor="textSecondary" style={styles.stateText}>Đang tải sản phẩm…</ThemedText>;
+  if (catalog.loading) return <ProductSkeleton />;
   if (catalog.error) {
     return (
       <View style={styles.errorState}>
@@ -99,6 +99,39 @@ function HomeProducts() {
           medicine={medicine}
           onPress={() => router.push({ pathname: '/medicine/[id]', params: { id: medicine.id } })}
         />
+      ))}
+    </View>
+  );
+}
+
+function CategorySkeleton() {
+  const theme = useTheme();
+  return (
+    <View accessibilityRole="progressbar" accessibilityLabel="Đang tải danh mục" style={styles.categorySkeletons}>
+      {[0, 1, 2].map((item) => (
+        <View key={item} style={[styles.categorySkeleton, { backgroundColor: theme.backgroundElement }]}>
+          <View style={[styles.categorySkeletonIcon, { backgroundColor: theme.backgroundSelected }]} />
+          <View style={[styles.categorySkeletonLabel, { backgroundColor: theme.backgroundSelected }]} />
+          <View style={[styles.categorySkeletonLabelShort, { backgroundColor: theme.backgroundSelected }]} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function ProductSkeleton() {
+  const theme = useTheme();
+  return (
+    <View accessibilityRole="progressbar" accessibilityLabel="Đang tải sản phẩm">
+      {[0, 1, 2, 3].map((item) => (
+        <View key={item} style={[styles.productSkeletonRow, { borderBottomColor: theme.backgroundElement }]}>
+          <View style={[styles.productSkeletonImage, { backgroundColor: theme.backgroundElement }]} />
+          <View style={styles.productSkeletonDetails}>
+            <View style={[styles.productSkeletonTitle, { backgroundColor: theme.backgroundElement }]} />
+            <View style={[styles.productSkeletonSubtitle, { backgroundColor: theme.backgroundElement }]} />
+            <View style={[styles.productSkeletonPrice, { backgroundColor: theme.backgroundSelected }]} />
+          </View>
+        </View>
       ))}
     </View>
   );
@@ -137,6 +170,17 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '700', letterSpacing: -0.3 },
   seeAll: { fontSize: 12, fontWeight: '600' },
   categoryList: { gap: 10, paddingBottom: 27 },
+  categorySkeletons: { flexDirection: 'row', gap: 10, paddingBottom: 27 },
+  categorySkeleton: { width: 116, minHeight: 112, padding: 12, borderRadius: 14, justifyContent: 'space-between' },
+  categorySkeletonIcon: { width: 42, height: 42, borderRadius: 13 },
+  categorySkeletonLabel: { width: '85%', height: 10, borderRadius: 5, marginTop: 12 },
+  categorySkeletonLabelShort: { width: '58%', height: 10, borderRadius: 5, marginTop: 6 },
+  productSkeletonRow: { minHeight: 100, flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth },
+  productSkeletonImage: { width: 76, height: 76, borderRadius: 13 },
+  productSkeletonDetails: { flex: 1, gap: 9 },
+  productSkeletonTitle: { width: '88%', height: 13, borderRadius: 7 },
+  productSkeletonSubtitle: { width: '62%', height: 10, borderRadius: 5 },
+  productSkeletonPrice: { width: 76, height: 13, borderRadius: 7, marginTop: 3 },
   category: { width: 116, minHeight: 112, padding: 12, borderRadius: 14, justifyContent: 'space-between' },
   categoryIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   categoryImage: { width: 42, height: 42 },

@@ -5,7 +5,6 @@ import Constants from 'expo-constants';
 import { ActivityIndicator, AppState, Modal, Platform, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Updates from 'expo-updates';
-import * as Notifications from 'expo-notifications';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/features/auth/auth-provider';
@@ -19,10 +18,6 @@ import { getAppDisplayVersion } from '@/shared/lib/app-version';
 import { UpdateCheckContext } from '@/shared/hooks/use-update-check';
 import { SupportChatOverlay } from '@/features/support-chat/components/support-chat-overlay';
 import { registerPushDevice } from '@/features/notifications/lib/push-registration';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }),
-});
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } });
 
@@ -56,20 +51,43 @@ function AppBootstrap() {
   const [availableUpdate, setAvailableUpdate] = useState<{ version: string; revision: string } | null>(null);
   const [updateStage, setUpdateStage] = useState<'checking' | 'up-to-date' | 'available' | 'downloading' | 'restarting' | 'error'>('available');
   const [updateError, setUpdateError] = useState<string | null>(null);
-  const lastNotificationResponse = Notifications.useLastNotificationResponse();
+  const [lastNotificationResponse, setLastNotificationResponse] = useState<import('expo-notifications').NotificationResponse | null>(null);
   const handledNotificationResponse = useRef<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    let receivedSubscription: import('expo-notifications').EventSubscription | undefined;
+    let responseSubscription: import('expo-notifications').EventSubscription | undefined;
+
+    void import('expo-notifications').then((Notifications) => {
+      if (!active) return;
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }),
+      });
+      receivedSubscription = Notifications.addNotificationReceivedListener(() => {
+        void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      });
+      responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+        setLastNotificationResponse(response);
+      });
+      void Notifications.getLastNotificationResponseAsync().then((response) => {
+        if (active) setLastNotificationResponse(response);
+      });
+    }).catch(() => {
+      // Older development builds and Expo Go may not include the native notifications module.
+    });
+
+    return () => {
+      active = false;
+      receivedSubscription?.remove();
+      responseSubscription?.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
     void registerPushDevice().catch(() => undefined);
   }, [user?.id]);
-
-  useEffect(() => {
-    const subscription = Notifications.addNotificationReceivedListener(() => {
-      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    });
-    return () => subscription.remove();
-  }, []);
 
   useEffect(() => {
     if (!lastNotificationResponse) { handledNotificationResponse.current = null; return; }
@@ -85,7 +103,7 @@ function AppBootstrap() {
     handledNotificationResponse.current = responseKey;
     if (user) router.push(`/notifications/${notificationId}` as import('expo-router').Href);
     else router.push({ pathname: '/auth/login', params: { notificationId } });
-    void Notifications.clearLastNotificationResponseAsync();
+    void import('expo-notifications').then((Notifications) => Notifications.clearLastNotificationResponseAsync()).catch(() => undefined);
   }, [authLoading, lastNotificationResponse, router, user]);
 
   useEffect(() => {

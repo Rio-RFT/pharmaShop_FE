@@ -1,12 +1,18 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { apiDeleteWithBody, apiPost } from '@/shared/api/client';
 import { clearPushToken, readPushToken, savePushToken } from '@/features/auth/token-storage';
 
 export async function registerPushDevice() {
   if (Platform.OS === 'web' || !Device.isDevice) return null;
+  let Notifications: typeof import('expo-notifications');
+  try {
+    Notifications = await import('expo-notifications');
+  } catch {
+    // Push registration is unavailable until the installed native build includes expo-notifications.
+    return null;
+  }
   const permission = await Notifications.getPermissionsAsync();
   const status = permission.granted ? permission.status : (await Notifications.requestPermissionsAsync()).status;
   if (status !== 'granted') return null;
