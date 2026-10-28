@@ -55,7 +55,7 @@ export function SupportChatOverlay() {
   };
 
   return <>
-    <View pointerEvents="box-none" style={styles.floatingLayer}>
+    <View pointerEvents="box-none" style={[styles.floatingLayer, Platform.OS === 'web' && styles.webFloatingLayer]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Chat với cửa hàng"
@@ -342,6 +342,7 @@ function isSupportConversationClosed(status: SupportConversation['status'] | und
 
 const styles = StyleSheet.create({
   floatingLayer: { ...StyleSheet.absoluteFill, justifyContent: 'flex-end', alignItems: 'flex-end', paddingRight: 17, paddingBottom: 92, zIndex: 50 },
+  webFloatingLayer: { top: undefined, left: undefined, width: 56, height: 56, right: 17, bottom: 92, paddingRight: 0, paddingBottom: 0 },
   floatingButton: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12, 24, 20, 0.35)' },
   keyboardArea: { width: '100%', alignItems: 'center' },
