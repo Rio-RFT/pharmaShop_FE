@@ -75,7 +75,12 @@ export function SupportChatOverlay() {
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={requestClose}>
       <View style={styles.backdrop}>
         <Pressable accessibilityRole="button" accessibilityLabel="Đóng cửa sổ chat" onPress={requestClose} style={StyleSheet.absoluteFill} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardArea}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
+          contentContainerStyle={styles.keyboardContent}
+          keyboardVerticalOffset={0}
+          style={styles.keyboardArea}
+        >
           <ThemedView style={[styles.panel, { backgroundColor: theme.background }]}>
             <SafeAreaView edges={['bottom']} style={styles.panelSafe}>
               <View style={[styles.header, { borderBottomColor: theme.backgroundElement }]}>
@@ -345,8 +350,9 @@ const styles = StyleSheet.create({
   webFloatingLayer: { top: undefined, left: undefined, width: 56, height: 56, right: 17, bottom: 92, paddingRight: 0, paddingBottom: 0 },
   floatingButton: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12, 24, 20, 0.35)' },
-  keyboardArea: { width: '100%', alignItems: 'center' },
-  panel: { width: '100%', maxWidth: 520, height: '78%', maxHeight: 700, overflow: 'hidden', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  keyboardArea: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  keyboardContent: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  panel: { width: '100%', maxWidth: 520, height: '65%', minHeight: 360, maxHeight: 560, overflow: 'hidden', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   panelSafe: { flex: 1 },
   header: { minHeight: 72, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, borderBottomWidth: StyleSheet.hairlineWidth },
   headerCopy: { flex: 1 },

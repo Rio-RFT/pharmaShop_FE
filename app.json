@@ -11,6 +11,7 @@
       "icon": "./assets/images/pharmashop-app-icon.png"
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/pharmashop-adaptive-icon.png"
