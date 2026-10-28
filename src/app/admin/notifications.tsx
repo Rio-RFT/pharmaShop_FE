@@ -1,7 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/features/auth/auth-provider';
-import { broadcastNotification, getNotifications, type BroadcastInput, type BroadcastResult, type NotificationBlock } from '@/features/notifications/api/notifications';
+import { broadcastNotification, getNotifications, type BroadcastInput, type BroadcastResult, type NotificationBlock, type NotificationCategory } from '@/features/notifications/api/notifications';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError } from '@/shared/api/client';
 import { Image } from 'expo-image';
@@ -23,12 +23,12 @@ const newBlock = (type: BlockType): NotificationBlock => {
 export default function AdminBroadcastScreen() {
   const theme = useTheme(); const router = useRouter(); const { user, loading } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
-  const [type, setType] = useState<'SHORT' | 'PAGE'>('SHORT'); const [title, setTitle] = useState(''); const [body, setBody] = useState('');
+  const [type, setType] = useState<'SHORT' | 'PAGE'>('SHORT'); const [category, setCategory] = useState<NotificationCategory>('SYSTEM'); const [title, setTitle] = useState(''); const [body, setBody] = useState('');
   const [blocks, setBlocks] = useState<NotificationBlock[]>([]); const [validationError, setValidationError] = useState(''); const [result, setResult] = useState<BroadcastResult | null>(null); const [view, setView] = useState<'history' | 'compose'>('history');
   const queryClient = useQueryClient();
   const history = useInfiniteQuery({ queryKey: ['notifications', 'admin-history'], queryFn: ({ pageParam }) => getNotifications(pageParam), initialPageParam: 1, getNextPageParam: (last) => last.hasMore ? last.page + 1 : undefined, enabled: isAdmin });
   const pullRefresh = usePullToRefresh();
-  const broadcast = useMutation({ mutationFn: (input: BroadcastInput) => broadcastNotification(input), onSuccess: (data) => { setResult(data); setTitle(''); setBody(''); setBlocks([]); setType('SHORT'); setView('history'); void queryClient.invalidateQueries({ queryKey: ['notifications'] }); } });
+  const broadcast = useMutation({ mutationFn: (input: BroadcastInput) => broadcastNotification(input), onSuccess: (data) => { setResult(data); setTitle(''); setBody(''); setBlocks([]); setType('SHORT'); setCategory('SYSTEM'); setView('history'); void queryClient.invalidateQueries({ queryKey: ['notifications'] }); } });
 
   const setBlock = (index: number, block: NotificationBlock) => setBlocks((current) => current.map((item, itemIndex) => itemIndex === index ? block : item));
   const validate = (): string | null => {
@@ -49,7 +49,7 @@ export default function AdminBroadcastScreen() {
     const error = validate(); setValidationError(error ?? ''); if (error) return;
     Alert.alert('Gửi thông báo toàn hệ thống?', `Thông báo sẽ xuất hiện trong inbox của người dùng hoạt động và gửi push đến thiết bị đã đăng ký.\n\n${title.trim()}\n${body.trim()}`, [
       { text: 'Hủy', style: 'cancel' },
-      { text: 'Gửi thông báo', onPress: () => { setResult(null); broadcast.mutate({ type, title: title.trim(), body: body.trim(), ...(type === 'PAGE' ? { content: blocks } : {}) }); } },
+      { text: 'Gửi thông báo', onPress: () => { setResult(null); broadcast.mutate({ type, category, title: title.trim(), body: body.trim(), ...(type === 'PAGE' ? { content: blocks } : {}) }); } },
     ]);
   };
   const input = (label: string, value: string, onChange: (value: string) => void, options: { maxLength: number; multiline?: boolean; hint?: string }) => <View style={styles.field}><View style={styles.fieldHeader}><ThemedText style={styles.label}>{label}</ThemedText><ThemedText themeColor="textSecondary" style={styles.counter}>{value.length}/{options.maxLength}</ThemedText></View><TextInput value={value} onChangeText={onChange} maxLength={options.maxLength} multiline={options.multiline} placeholder={label} placeholderTextColor={theme.textSecondary} accessibilityLabel={label} style={[styles.input, options.multiline && styles.textArea, { color: theme.text, borderColor: theme.backgroundSelected }]} />{options.hint ? <ThemedText themeColor="textSecondary" style={styles.hint}>{options.hint}</ThemedText> : null}</View>;
@@ -58,10 +58,10 @@ export default function AdminBroadcastScreen() {
   if (loading) return <ThemedView style={styles.center}><ThemedText>Đang kiểm tra quyền truy cập...</ThemedText></ThemedView>;
   if (!isAdmin) return <ThemedView style={styles.center}><ThemedText style={styles.heading}>Chỉ tài khoản ADMIN mới được gửi thông báo.</ThemedText><Pressable onPress={() => router.back()}><ThemedText style={{ color: theme.tint }}>Quay lại</ThemedText></Pressable></ThemedView>;
 
-  return <ThemedView style={styles.page}><SafeAreaView style={styles.safe} edges={['top']}><ScrollView alwaysBounceVertical refreshControl={<RefreshControl refreshing={pullRefresh.refreshing} onRefresh={() => void pullRefresh.onRefresh()} tintColor={theme.tint} colors={[theme.tint]} />} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+  return <ThemedView style={styles.page}><SafeAreaView style={styles.safe} edges={['top']}><ScrollView alwaysBounceVertical stickyHeaderIndices={[3]} refreshControl={<RefreshControl refreshing={pullRefresh.refreshing} onRefresh={() => void pullRefresh.onRefresh()} tintColor={theme.tint} colors={[theme.tint]} />} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}><ThemedText style={{ color: theme.tint, fontWeight: '700' }}>‹ Quản trị</ThemedText></Pressable>
     <ThemedText style={styles.heading}>Thông báo toàn hệ thống</ThemedText><ThemedText themeColor="textSecondary" style={styles.description}>Gửi nội dung tới inbox người dùng đang hoạt động; push được gửi đến thiết bị đã đăng ký.</ThemedText>
-    <View style={styles.modeTabs}>{(['history', 'compose'] as const).map((value) => <Pressable key={value} onPress={() => setView(value)} style={[styles.modeTab, { backgroundColor: view === value ? theme.tint : theme.backgroundElement }]}><ThemedText style={{ color: view === value ? '#fff' : theme.text, fontWeight: '700' }}>{value === 'history' ? 'Lịch sử' : 'Soạn thông báo'}</ThemedText></Pressable>)}</View>
+    <View style={[styles.modeTabs, { backgroundColor: theme.background, flexDirection: 'row', alignSelf: 'stretch' }]}>{(['history', 'compose'] as const).map((value) => <Pressable key={value} onPress={() => setView(value)} style={[styles.modeTab, { flex: 1, minWidth: 0, backgroundColor: view === value ? theme.tint : theme.backgroundElement }]}><ThemedText numberOfLines={1} adjustsFontSizeToFit style={{ color: view === value ? '#fff' : theme.text, fontWeight: '700', textAlign: 'center' }}>{value === 'history' ? 'Lịch sử' : 'Soạn thông báo'}</ThemedText></Pressable>)}</View>
     {view === 'history' ? <View style={styles.history}>
       <View style={styles.historyHeading}><ThemedText style={styles.sectionTitle}>Thông báo trong inbox admin</ThemedText><Pressable onPress={() => void history.refetch()}><ThemedText style={{ color: theme.tint }}>Làm mới</ThemedText></Pressable></View>
       {result ? <View style={[styles.result, { backgroundColor: theme.backgroundElement }]}><ThemedText style={styles.label}>Đã tạo thông báo</ThemedText><ThemedText themeColor="textSecondary" style={styles.hint}>{result.recipientCount} người nhận inbox · {result.deviceCount} thiết bị được gửi yêu cầu push</ThemedText></View> : null}
@@ -70,6 +70,7 @@ export default function AdminBroadcastScreen() {
       {history.data?.pages[0]?.items.length === 0 ? <ThemedText themeColor="textSecondary" style={styles.empty}>Chưa có thông báo nào trong inbox admin.</ThemedText> : null}
       {history.hasNextPage ? <Pressable disabled={history.isFetchingNextPage} onPress={() => void history.fetchNextPage()} style={styles.loadMore}><ThemedText style={{ color: theme.tint, fontWeight: '700' }}>{history.isFetchingNextPage ? 'Đang tải...' : 'Tải thêm'}</ThemedText></Pressable> : null}
     </View> : <>
+    <ThemedText style={styles.sectionTitle}>Phân loại thông báo</ThemedText><View style={styles.typePicker}>{(['SYSTEM', 'EVENT'] as const).map((value) => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: category === value }} onPress={() => { setCategory(value); setValidationError(''); }} style={[styles.typeOption, { borderColor: category === value ? theme.tint : theme.backgroundSelected, backgroundColor: category === value ? theme.backgroundSelected : 'transparent' }]}><ThemedText style={{ color: theme.text, fontWeight: '700' }}>{value === 'SYSTEM' ? 'Thông báo hệ thống' : 'Sự kiện'}</ThemedText><ThemedText themeColor="textSecondary" style={styles.hint}>{value === 'SYSTEM' ? 'Đơn hàng, tài khoản, dịch vụ' : 'Chương trình, ưu đãi, sự kiện'}</ThemedText></Pressable>)}</View>
     <View style={styles.typePicker}>{(['SHORT', 'PAGE'] as const).map((value) => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: type === value }} onPress={() => { setType(value); setValidationError(''); setResult(null); }} style={[styles.typeOption, { borderColor: type === value ? theme.tint : theme.backgroundSelected, backgroundColor: type === value ? theme.backgroundSelected : 'transparent' }]}><ThemedText style={{ color: theme.text, fontWeight: '700' }}>{value === 'SHORT' ? 'Thông báo ngắn' : 'Trang sự kiện'}</ThemedText><ThemedText themeColor="textSecondary" style={styles.hint}>{value === 'SHORT' ? 'Chỉ tiêu đề và nội dung' : 'Preview kèm nội dung dạng block'}</ThemedText></Pressable>)}</View>
     {input('Tiêu đề', title, setTitle, { maxLength: 80 })}{input('Nội dung preview', body, setBody, { maxLength: 180, multiline: true, hint: 'Phần này hiện trong push và inbox.' })}
     {type === 'SHORT' ? <View style={[styles.preview, { backgroundColor: theme.backgroundElement }]}><ThemedText style={styles.previewEyebrow}>XEM TRƯỚC THÔNG BÁO</ThemedText><ThemedText style={styles.previewTitle}>{title || 'Tiêu đề thông báo'}</ThemedText><ThemedText themeColor="textSecondary" style={styles.previewBody}>{body || 'Nội dung hiển thị trong push và inbox.'}</ThemedText></View> : null}

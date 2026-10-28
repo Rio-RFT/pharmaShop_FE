@@ -1,231 +1,188 @@
+﻿# 📱 PharmaShop Frontend
+
+Ứng dụng PharmaShop dành cho khách hàng và nhân viên, xây dựng bằng React Native và Expo. Frontend hỗ trợ Android, iOS và Web; các dữ liệu nghiệp vụ được lấy từ PharmaShop Backend.
+
 <div align="center">
 
-  <img src="assets/readme-banner.svg" alt="PharmaShop — Nhà thuốc trực tuyến" width="100%" />
+<img src="assets/readme-banner.svg" alt="PharmaShop — Nhà thuốc trực tuyến" width="100%" />
 
-  <br />
+![Expo](https://img.shields.io/badge/Expo-SDK%2058-000020?style=for-the-badge&logo=expo)
+![React Native](https://img.shields.io/badge/React%20Native-0.88-20232A?style=for-the-badge&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Platforms](https://img.shields.io/badge/Platforms-Android%20%7C%20iOS%20%7C%20Web-18A889?style=for-the-badge)
 
-  <a href="https://github.com/Rio-RFT/pharmaShop_FE/stargazers"><img src="https://img.shields.io/github/stars/Rio-RFT/pharmaShop_FE?style=for-the-badge&logo=github&label=Stars&color=18A889" alt="GitHub stars" /></a>
-  <a href="https://github.com/Rio-RFT/pharmaShop_FE/commits/master"><img src="https://img.shields.io/github/last-commit/Rio-RFT/pharmaShop_FE?style=for-the-badge&logo=git&color=18A889" alt="Last commit" /></a>
-  <img src="https://img.shields.io/badge/Expo_SDK-58-000020?style=for-the-badge&logo=expo" alt="Expo SDK 58" />
-  <img src="https://img.shields.io/badge/React_Native-0.88-20232A?style=for-the-badge&logo=react" alt="React Native 0.88" />
-  <img src="https://img.shields.io/badge/TypeScript-6-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+### 🛍️ Mua sắm dược phẩm trên mọi thiết bị
 
-  <h1>PharmaShop</h1>
-  <p><strong>Nhà thuốc trực tuyến, ngay trong tầm tay.</strong></p>
-  <p>Ứng dụng mua sắm dược phẩm đa nền tảng cho iOS, Android và web.</p>
-
-  <a href="#bắt-đầu-nhanh">Bắt đầu nhanh</a> ·
-  <a href="#tính-năng">Tính năng</a> ·
-  <a href="#build-android">Build Android</a> ·
-  <a href="#cập-nhật-ota">Cập nhật OTA</a>
+[🚀 Bắt đầu nhanh](#cài-đặt) · [🔧 Cấu hình API](#cấu-hình) · [📜 Scripts](#scripts)
 
 </div>
-
-<br />
-
-## Tổng quan
-
-PharmaShop là ứng dụng nhà thuốc trực tuyến được xây dựng bằng **React Native**, **Expo** và **TypeScript**. Ứng dụng kết nối backend PharmaShop để tìm kiếm sản phẩm, quản lý giỏ hàng, địa chỉ giao hàng, đặt hàng và theo dõi thanh toán.
-
-| Nền tảng | Trạng thái | Công nghệ đóng gói |
-| --- | --- | --- |
-| Android | Hỗ trợ | Expo / EAS Build (APK thử nghiệm) |
-| iOS | Hỗ trợ | Expo / EAS Build |
-| Web | Hỗ trợ | React Native Web / Expo |
 
 ## Mục lục
 
 - [Tính năng](#tính-năng)
 - [Công nghệ](#công-nghệ)
-- [Kiến trúc](#kiến-trúc)
-- [Bắt đầu nhanh](#bắt-đầu-nhanh)
-- [Cấu hình backend trên EAS](#cấu-hình-backend-trên-eas)
-- [Build Android](#build-android)
-- [Cập nhật OTA](#cập-nhật-ota)
-- [Kiểm tra chất lượng](#kiểm-tra-chất-lượng)
-- [Bảo mật](#bảo-mật)
-- [Đóng góp](#đóng-góp)
-- [Giấy phép](#giấy-phép)
+- [Yêu cầu](#yêu-cầu)
+- [Cài đặt](#cài-đặt)
+- [Cấu hình](#cấu-hình)
+- [Chạy ứng dụng](#chạy-ứng-dụng)
+- [Cấu trúc mã nguồn](#cấu-trúc-mã-nguồn)
+- [API và xác thực](#api-và-xác-thực)
+- [Scripts](#scripts)
+- [Khắc phục sự cố](#khắc-phục-sự-cố)
+- [Liên quan](#liên-quan)
 
-## Tính năng
+## ✨ Tính năng
 
-<table>
-  <tr>
-    <td width="50%"><strong>🛍️ Khám phá sản phẩm</strong><br />Tìm kiếm thuốc, xem danh mục và thông tin chi tiết từ API.</td>
-    <td width="50%"><strong>🛒 Giỏ hàng đồng bộ</strong><br />Giỏ hàng của tài khoản được lưu ở backend và đồng bộ khi đăng nhập.</td>
-  </tr>
-  <tr>
-    <td><strong>🔐 Tài khoản an toàn</strong><br />Đăng ký, đăng nhập, Google OAuth và lưu thông tin xác thực an toàn trên thiết bị.</td>
-    <td><strong>🏷️ Mã giảm giá</strong><br />Nhập mã ưu đãi; backend xác minh điều kiện và tính số tiền đơn hàng.</td>
-  </tr>
-  <tr>
-    <td><strong>📍 Địa chỉ giao hàng</strong><br />Lưu nhiều địa chỉ, chọn địa chỉ khi thanh toán và tra cứu đơn vị hành chính Việt Nam.</td>
-    <td><strong>💳 Thanh toán & đơn hàng</strong><br />Hỗ trợ COD, PayOS, xem đơn hàng và trạng thái thanh toán.</td>
-  </tr>
-  <tr>
-    <td><strong>🌗 Trải nghiệm đa nền tảng</strong><br />Giao diện sáng/tối theo thiết bị, tối ưu cho iOS, Android và web.</td>
-    <td><strong>🚀 Cập nhật ứng dụng</strong><br />Tự kiểm tra, tải và áp dụng EAS Update tương thích khi khởi động.</td>
-  </tr>
-</table>
+- Đăng ký, đăng nhập, OTP, Google/Firebase Sign-In tùy cấu hình.
+- Trang chủ, danh mục phân cấp, tìm kiếm và chi tiết thuốc.
+- Giỏ hàng, checkout, quản lý địa chỉ nhận hàng và coupon.
+- Lịch sử đơn, chi tiết đơn và đồng bộ trạng thái thanh toán PayOS.
+- Hồ sơ người dùng, hộp thư thông báo và đăng ký push notification.
+- Chat hỗ trợ khách hàng và giao diện quản trị/nhân viên theo role.
+- Giao diện thích ứng với nền tảng và theme thiết bị.
 
-## Công nghệ
+## 🧰 Công nghệ
 
-<p>
-  <img src="https://img.shields.io/badge/Expo-000020?style=flat-square&logo=expo&logoColor=white" alt="Expo" />
-  <img src="https://img.shields.io/badge/React_Native-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React Native" />
-  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Expo_Router-000020?style=flat-square&logo=expo&logoColor=white" alt="Expo Router" />
-  <img src="https://img.shields.io/badge/TanStack_Query-FF4154?style=flat-square&logo=reactquery&logoColor=white" alt="TanStack Query" />
-  <img src="https://img.shields.io/badge/EAS_Update-4630EB?style=flat-square&logo=expo&logoColor=white" alt="EAS Update" />
-</p>
+- React Native `0.88`, React `19`, Expo SDK `58`, TypeScript.
+- Expo Router cho điều hướng theo file.
+- TanStack Query cho server state/cache.
+- Secure Store cho credential; Socket.IO client cho realtime.
+- React Native Web cho bản chạy trên trình duyệt.
+- Firebase Authentication/Messaging và Google Sign-In cho các luồng đã cấu hình.
 
-- **Ứng dụng:** React Native 0.88, Expo SDK 58, TypeScript
-- **Điều hướng:** Expo Router
-- **Dữ liệu API:** TanStack Query và API client dùng chung
-- **Lưu thông tin đăng nhập:** Expo SecureStore
-- **Build/phát hành:** EAS Build, EAS Update
-- **UI:** React Native, Expo Image, biểu tượng Lucide
+## ✅ Yêu cầu
 
-## Kiến trúc
+- Node.js và npm tương thích với `package-lock.json`.
+- PharmaShop Backend đang chạy hoặc một API tương thích.
+- Expo Go cho kiểm tra tính năng tương thích, hoặc development build khi dùng native modules như Firebase/Google Sign-In.
+- Android Studio/Android SDK để build Android; macOS và Xcode để build/chạy iOS native.
 
-```mermaid
-flowchart LR
-    Screens[Expo Router screens] --> Features[Feature modules]
-    Features --> Query[TanStack Query]
-    Query --> Client[Shared API client]
-    Client --> Backend[PharmaShop REST API]
-    Features --> Secure[SecureStore]
-    EAS[EAS Update] --> App[Installed app]
-```
+## 🚀 Cài đặt
 
-```text
-src/
-├── app/                 # Expo Router routes, tabs và layouts
-├── features/
-│   ├── auth/            # Đăng nhập, đăng ký, phiên người dùng
-│   ├── catalog/         # Tìm kiếm, danh mục, sản phẩm
-│   ├── cart/            # Giỏ hàng backend
-│   ├── checkout/        # Địa chỉ, giảm giá, tạo đơn
-│   ├── orders/          # Danh sách và chi tiết đơn
-│   ├── payments/        # PayOS và kết quả thanh toán
-│   └── profile/         # Hồ sơ và địa chỉ đã lưu
-├── shared/
-│   ├── api/             # API client và chuẩn hóa lỗi
-│   ├── components/      # Thành phần giao diện dùng chung
-│   └── theme/           # Theme và design tokens
-└── components/          # Thành phần dùng chung của ứng dụng
-
-assets/                  # Logo, icon và hình ảnh
-public/                  # Tài nguyên tĩnh cho ứng dụng
-scripts/                 # Script hỗ trợ phát triển
-update.cmd               # Công cụ publish EAS Update cho Windows
-```
-
-## Bắt đầu nhanh
-
-### Yêu cầu
-
-- Node.js phiên bản LTS và npm
-- Backend PharmaShop đang chạy hoặc URL backend có thể truy cập
-- Android Studio để chạy Android Emulator
-- macOS và Xcode để chạy iOS Simulator hoặc build iOS local
-
-### Cài đặt
+Từ thư mục này (`pharmaShop/`):
 
 ```bash
-git clone https://github.com/Rio-RFT/pharmaShop_FE.git
-cd pharmaShop_FE
-npm ci
+npm install
 ```
 
-Tạo file `.env` ở thư mục gốc, có thể sao chép từ `.env.example`, rồi đặt URL API:
+## 🔧 Cấu hình
 
-```env
-EXPO_PUBLIC_API_URL=https://pharmashop-0owg.onrender.com/api/v1
+Tạo file `.env` trong `pharmaShop/`:
+
+```dotenv
+EXPO_PUBLIC_API_URL=http://localhost:10000/api/v1
 ```
 
-URL phải truy cập được từ thiết bị/trình duyệt và bao gồm `/api/v1`. Nếu dùng backend local trên điện thoại thật, dùng IP LAN của máy chạy backend, ví dụ `http://192.168.1.10:1111/api/v1`. Cấu hình host trực tiếp qua `EXPO_PUBLIC_API_URL` cho nền tảng đang chạy.
+API client yêu cầu biến này khi khởi tạo. Giá trị phải gồm base path `/api/v1`. `EXPO_PUBLIC_*` được đưa vào bundle ứng dụng, vì vậy chỉ đặt URL/thông tin công khai ở đây; không đặt API key, JWT secret, Firebase Admin key hay PayOS secret.
 
-### Khởi chạy
+### 🌍 URL theo nền tảng
+
+| Nền tảng | Ví dụ |
+|---|---|
+| Web trên cùng máy chạy backend | `http://localhost:10000/api/v1` |
+| Android emulator | `http://localhost:10000/api/v1`; client tự đổi `localhost` thành `10.0.2.2` |
+| Thiết bị thật | `http://<IP-LAN-của-máy-backend>:10000/api/v1` |
+| Backend staging/production | HTTPS URL của backend, kết thúc bằng `/api/v1` |
+
+Thiết bị thật phải truy cập được máy chủ qua mạng. Sau khi đổi `.env`, dừng và khởi động lại Expo. Cấu hình native Google/Firebase còn cần thiết lập tương ứng trong Google Cloud/Firebase Console và app config.
+
+## ▶️ Chạy ứng dụng
+
+### 🌐 Web
 
 ```bash
-npm run start
-```
-
-Trong terminal Expo, chọn thiết bị hoặc nhấn `a` (Android), `i` (iOS Simulator) hay `w` (web). Có thể dùng các lệnh riêng:
-
-```bash
-npm run android
-npm run ios
 npm run web
 ```
 
-## Cấu hình backend trên EAS
-
-Các build cloud và OTA update cần nhận `EXPO_PUBLIC_API_URL` từ EAS Environment Variables. Tạo biến cho môi trường `preview`:
+### 📲 Expo development server
 
 ```bash
-npx eas-cli@latest env:set --name EXPO_PUBLIC_API_URL --value https://pharmashop-0owg.onrender.com/api/v1 --environment preview --visibility plaintext
+npm start
 ```
 
-Lặp lại lệnh với `--environment production` để cấu hình bản production. Biến `EXPO_PUBLIC_*` được đóng gói vào ứng dụng; chỉ đặt giá trị công khai như URL API, không đặt mật khẩu hoặc secret ở đây.
+Sau đó chọn Android/iOS/Web trong Expo CLI. Với native modules, hãy dùng development build thay vì giả định Expo Go hỗ trợ đầy đủ.
 
-## Build Android
-
-Profile `preview` trong `eas.json` tạo APK cài trực tiếp. Đăng nhập EAS và bắt đầu build:
+### 🤖 Android native
 
 ```bash
-npx eas-cli@latest login
-npx eas-cli@latest build --platform android --profile preview
+npm run android
 ```
 
-Khi build hoàn tất, tải APK từ trang build của Expo và cài đặt lên thiết bị Android. Package name: `com.refined.pharmashop`.
+Lệnh này sử dụng Android SDK đã cài trên máy để build/chạy ứng dụng.
 
-Build production:
+### 🍎 iOS native
 
 ```bash
-npx eas-cli@latest build --platform android --profile production
+npm run ios
 ```
 
-## Cập nhật OTA
+Yêu cầu macOS và Xcode.
 
-Sau khi người dùng đã cài một build có EAS Updates, có thể phát hành thay đổi JavaScript và asset tương thích mà không cần cài APK mới.
+## 📁 Cấu trúc mã nguồn
 
-**Windows:** chạy `update.cmd` từ thư mục dự án. Công cụ sẽ hỏi channel (`preview`, `production` hoặc `development`), nội dung cập nhật, sau đó yêu cầu xác nhận trước khi gửi lên EAS.
-
-**CLI:**
-
-```bash
-npx eas-cli@latest update --channel preview --environment preview --message "Mô tả cập nhật"
+```text
+src/
+├── app/                    # Expo Router: tabs, auth, catalog, checkout, order, payment, admin
+├── components/             # Component giao diện dùng chung
+├── features/
+│   ├── admin/              # API và màn hình quản trị
+│   ├── auth/               # Session, token storage, đăng nhập
+│   ├── cart/               # API giỏ hàng
+│   ├── catalog/            # API, search, category, màn catalog
+│   ├── checkout/           # Địa chỉ và checkout
+│   ├── notifications/      # Hộp thư và đăng ký push
+│   ├── orders/              # Đơn hàng, coupon, đồng bộ trạng thái
+│   ├── payments/           # Kết quả và trạng thái thanh toán
+│   ├── profile/            # Hồ sơ và địa chỉ
+│   └── support-chat/       # Chat hỗ trợ
+└── shared/
+    ├── api/                # API client, auth header, refresh và lỗi
+    ├── components/         # Component dùng chung
+    └── hooks/              # Hook dùng chung
 ```
 
-Ứng dụng kiểm tra và tải bản cập nhật tương thích khi khởi động. Thay đổi native như thư viện native, quyền hệ thống, plugin, app scheme hoặc cấu hình native cần build APK mới. Runtime version hiện được quản lý theo `appVersion`.
+Một số route chính trong `src/app/`: `/(tabs)` cho trang chủ/danh mục/giỏ/đơn/tài khoản; `/search`, `/products`, `/category/[name]`, `/medicine/[id]`; `/checkout`; `/order/[id]`; `/payment/...`; `/notifications/...`; `/admin/...`.
 
-## Kiểm tra chất lượng
+## 🔐 API và xác thực
 
-```bash
-npx tsc --noEmit
-npm run lint
-```
+- Backend mặc định dùng base path `/api/v1`; Swagger có tại `/api/docs` khi server chạy.
+- API client dùng `EXPO_PUBLIC_API_URL`, thêm Bearer access token, timeout, chuẩn hóa lỗi và thử refresh token khi nhận 401.
+- Credential được quản lý trong `features/auth/token-storage.ts`; session được xóa khi refresh thất bại.
+- Server response được đọc từ field `data` trong response envelope.
+- Cart, order, giá, tồn và trạng thái thanh toán do backend quản lý. Không coi dữ liệu cache/client là nguồn sự thật.
+- Chat dùng Socket.IO client; cần backend và token hợp lệ.
 
-## Bảo mật
+## 📜 Scripts
 
-- Backend là nguồn dữ liệu chuẩn cho giá, tồn kho, mã giảm giá, đơn hàng và trạng thái thanh toán.
-- Không commit `.env`, token, mật khẩu, khóa API hay thông tin xác thực.
-- Token được lưu bằng SecureStore trên thiết bị hỗ trợ; dữ liệu phiên cần được xóa khi đăng xuất.
-- Kết quả redirect của PayOS không được dùng làm bằng chứng duy nhất để xác nhận thanh toán; trạng thái cuối do backend cung cấp.
+| Lệnh | Mô tả |
+|---|---|
+| `npm start` | Khởi động Expo development server |
+| `npm run web` | Chạy ứng dụng Web |
+| `npm run android` | Build/chạy Android native |
+| `npm run ios` | Build/chạy iOS native |
+| `npm run lint` | Chạy Expo lint |
 
-## Đóng góp
+## 🛠️ Khắc phục sự cố
 
-1. Tạo branch từ `main` cho thay đổi của bạn.
-2. Giữ thay đổi tập trung vào một mục tiêu và tuân theo TypeScript/Expo conventions của dự án.
-3. Chạy typecheck và lint trước khi mở Pull Request.
-4. Mô tả thay đổi, cách kiểm tra và ảnh chụp màn hình nếu có thay đổi UI.
+### ⚠️ Thiếu `EXPO_PUBLIC_API_URL`
 
-## Giấy phép
+Kiểm tra `.env` nằm trong đúng thư mục `pharmaShop/`, tên biến chính xác và có `/api/v1`; khởi động lại Expo sau khi sửa.
 
-Xem [LICENSE](LICENSE) để biết thông tin giấy phép và thông báo bản quyền đi kèm repository.
+### 🔌 API không kết nối được
 
-<div align="center">
-  <sub>Được xây dựng với React Native và Expo · PharmaShop</sub>
-</div>
+Kiểm tra backend đang chạy, cổng `PORT`, PostgreSQL và địa chỉ API. Android emulator dùng `10.0.2.2`; điện thoại thật dùng IP LAN của máy backend.
+
+### 🔑 Đăng nhập Google/Firebase hoặc push không hoạt động
+
+Kiểm tra Firebase/Google project, OAuth client, package/bundle ID, file cấu hình native và development build. Các luồng này không chỉ phụ thuộc URL API.
+
+### 🔄 Thay đổi native module nhưng app không cập nhật
+
+Tạo lại development/native build; chỉ reload JavaScript không biên dịch lại native dependency.
+
+## 🔗 Liên quan
+
+- Backend API: [`../pharmaShop_BE/README.md`](../pharmaShop_BE/README.md)
+- Hướng dẫn toàn hệ thống: [`../README.md`](../README.md)
+- Cấu hình Expo: [`app.json`](app.json)
+- API client: [`src/shared/api/client.ts`](src/shared/api/client.ts)
